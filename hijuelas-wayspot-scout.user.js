@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hijuelas Wayspot Scout Overlay
 // @namespace    https://hijuelas-wayspot-scout.local/
-// @version      0.5.1
+// @version      0.5.2
 // @description  Lectura local S14/S17 y regla empírica de 22 m sobre el mapa de Wayfarer.
 // @match        https://wayfarer.nianticlabs.com/new/mapview*
 // @match        https://wayfarer.scopely.com/new/mapview*
@@ -5725,6 +5725,16 @@
       (color) => `<button class="hws-color${color.value === current ? " hws-color--active" : ""}" data-hws-color="${color.value}" data-hws-layer="${layer}" style="--hws-color:${color.value}" title="${color.name}" aria-label="Color ${color.name} para ${layer.toUpperCase()}"></button>`
     ).join("");
   }
+  function positionOverlay() {
+    const root = document.getElementById("hws-root");
+    if (!root) return;
+    const viewportHeight = window.innerHeight;
+    const controlsBottom = Array.from(document.querySelectorAll("button, [role='button'], input[type='search']")).filter((element) => !root.contains(element)).map((element) => element.getBoundingClientRect()).filter((rect) => rect.width >= 24 && rect.height >= 24 && rect.bottom > 0 && rect.top < viewportHeight * 0.52).reduce((bottom, rect) => Math.max(bottom, rect.bottom), 0);
+    const top = Math.min(Math.max(controlsBottom + 12, 12), Math.max(12, viewportHeight * 0.48));
+    const panelHeight = Math.max(220, Math.floor(viewportHeight - top - 84));
+    root.style.top = `${Math.round(top)}px`;
+    root.style.setProperty("--hws-panel-max-height", `${panelHeight}px`);
+  }
   function createUi() {
     if (document.getElementById("hws-root")) return;
     const root = document.createElement("div");
@@ -5769,9 +5779,9 @@
     document.body.appendChild(root);
     const style = document.createElement("style");
     style.textContent = `
-    #hws-root{position:fixed;left:18px;top:336px;z-index:2147483000;font-family:system-ui,-apple-system,Arial,sans-serif;color:#15202b}
+    #hws-root{position:fixed;left:18px;top:12px;z-index:2147483000;font-family:system-ui,-apple-system,Arial,sans-serif;color:#15202b}
     #hws-toggle{width:56px;height:56px;border:0;border-radius:28px;background:#1e5d8c;color:#fff;font-weight:800;font-size:17px;box-shadow:0 6px 18px #0006}
-    #hws-panel{position:absolute;left:0;top:68px;width:min(330px,calc(100vw - 32px));max-height:60vh;overflow:auto;background:#f7f4ed;border-radius:18px;box-shadow:0 10px 30px #0007;padding:14px;box-sizing:border-box}
+    #hws-panel{position:absolute;left:0;top:68px;width:min(330px,calc(100vw - 32px));max-height:var(--hws-panel-max-height,60dvh);overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;background:#f7f4ed;border-radius:18px;box-shadow:0 10px 30px #0007;padding:14px;box-sizing:border-box}
     #hws-panel header{display:flex;justify-content:space-between;align-items:center;font-size:16px}#hws-close{border:0;background:transparent;font-size:28px;line-height:1;color:#15202b}
     #hws-counter{margin:8px 0 10px;color:#52606d;font-size:12px}.hws-primary,.hws-secondary,.hws-location{width:100%;border:0;border-radius:12px;padding:12px;font-weight:700;font-size:14px}.hws-primary{background:#1f6f54;color:white}.hws-location{margin-top:8px;background:#e4eef8;color:#174b70}.hws-secondary{margin-top:10px;background:#e8e0d2;color:#483a2d}.hws-hint{margin:8px 0 0;color:#52606d;font-size:11px;line-height:1.35}.hws-switches{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;font-size:13px}.hws-switches label{display:flex;gap:4px;align-items:center}
     #hws-style{margin:10px 0}.hws-style summary{cursor:pointer;font-size:13px;font-weight:700;margin:9px 0}.hws-color-row{display:flex;align-items:center;gap:9px;margin:7px 0;font-size:12px;font-weight:700}.hws-color-row>span{width:49px}.hws-palette{display:flex;gap:5px;flex-wrap:wrap}.hws-color{width:21px;height:21px;border-radius:50%;border:2px solid #fff;background:var(--hws-color);box-shadow:0 0 0 1px #65717b;box-sizing:border-box}.hws-color--active{box-shadow:0 0 0 3px #15202b;transform:scale(1.05)}.hws-width{display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:12px;font-weight:700}.hws-width select{border:1px solid #b9c3c8;border-radius:8px;background:#fff;padding:6px;font-size:12px;color:#15202b}
@@ -5779,6 +5789,9 @@
     #hws-result{display:flex;flex-direction:column;gap:6px;background:#fff;border-radius:12px;padding:11px;font-size:12px;line-height:1.35}#hws-result strong{font-size:13px}#hws-result small{color:#69727d;margin-top:2px}#hws-panel footer{font-size:10px;line-height:1.35;color:#69727d;margin-top:10px}
   `;
     document.head.appendChild(style);
+    positionOverlay();
+    window.addEventListener("resize", positionOverlay, { passive: true });
+    setTimeout(positionOverlay, 500);
     const panel = root.querySelector("#hws-panel");
     state.panel = panel;
     state.counter = root.querySelector("#hws-counter");
