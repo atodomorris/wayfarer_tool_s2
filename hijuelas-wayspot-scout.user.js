@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hijuelas Wayspot Scout Overlay
 // @namespace    https://hijuelas-wayspot-scout.local/
-// @version      0.3.0
+// @version      0.4.0
 // @description  Lectura local S14/S17 y regla empírica de 22 m sobre el mapa de Wayfarer.
 // @match        https://wayfarer.nianticlabs.com/new/mapview*
 // @updateURL    https://raw.githubusercontent.com/atodomorris/wayfarer_tool_s2/main/hijuelas-wayspot-scout.user.js
@@ -5300,7 +5300,69 @@
     };
   }
 
+  // userscript/src/candidate-store.ts
+  var CANDIDATE_STORAGE_KEY = "hws-candidates-v1";
+  var MAX_CANDIDATES = 200;
+  function text(value, limit) {
+    return typeof value === "string" ? value.trim().slice(0, limit) : "";
+  }
+  function finite2(value) {
+    return typeof value === "number" && Number.isFinite(value);
+  }
+  function normalize(value) {
+    if (!value || typeof value !== "object") return null;
+    const item = value;
+    if (!finite2(item.lat) || !finite2(item.lng) || Math.abs(item.lat) > 90 || Math.abs(item.lng) > 180) return null;
+    const id = text(item.id, 120);
+    const createdAt = finite2(item.createdAt) ? item.createdAt : 0;
+    if (!id || !createdAt) return null;
+    return {
+      id,
+      lat: item.lat,
+      lng: item.lng,
+      title: text(item.title, 80) || "Candidato sin t\xEDtulo",
+      note: text(item.note, 600),
+      createdAt
+    };
+  }
+  function loadCandidates(storage) {
+    try {
+      const raw = storage.getItem(CANDIDATE_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(parsed)) return [];
+      return parsed.map(normalize).filter((candidate) => Boolean(candidate)).slice(0, MAX_CANDIDATES);
+    } catch {
+      return [];
+    }
+  }
+  function saveCandidates(storage, candidates) {
+    try {
+      storage.setItem(CANDIDATE_STORAGE_KEY, JSON.stringify(candidates.slice(0, MAX_CANDIDATES)));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  function createCandidate(point, title, note, createdAt = Date.now(), id = `${createdAt.toString(36)}-${Math.round(point.lat * 1e6)}-${Math.round(point.lng * 1e6)}`) {
+    return {
+      id,
+      lat: point.lat,
+      lng: point.lng,
+      title: text(title, 80) || "Candidato sin t\xEDtulo",
+      note: text(note, 600),
+      createdAt
+    };
+  }
+
   // userscript/src/hijuelas-wayspot-scout.user.ts
+  function browserStorage() {
+    try {
+      return window.localStorage;
+    } catch {
+      return null;
+    }
+  }
+  var candidateStorage = browserStorage();
   var MAP_ROUTE = "/new/mapview";
   var GCS_PATH = "/api/v1/vault/mapview/gcs";
   var MAX_DRAWN_CIRCLES = 220;
@@ -5324,7 +5386,12 @@
     pois: /* @__PURE__ */ new Map(),
     polygons: [],
     circles: [],
+    markers: [],
+    candidateMarkers: [],
     evaluation: null,
+    evaluationSource: null,
+    gpsAccuracy: null,
+    locationMessage: "Toca el mapa para evaluar un punto, o usa tu ubicaci\xF3n.",
     showS17: true,
     showS14: true,
     showCircles: true,
@@ -5335,7 +5402,10 @@
     s17Color: "#2a84e8",
     s14Color: "#ffab24",
     lineMultiplier: 1,
-    gridMessage: "Esperando l\xEDmites del mapa"
+    gridMessage: "Esperando l\xEDmites del mapa",
+    candidates: candidateStorage ? loadCandidates(candidateStorage) : [],
+    candidateList: null,
+    candidateCount: null
   };
   function isMapCandidate(value) {
     return !!value && typeof value.getCenter === "function" && typeof value.getDiv === "function";
@@ -5364,7 +5434,7 @@
     if (state.counter) state.counter.textContent = `${state.gridMessage} \xB7 ${state.pois.size} referencias cargadas`;
     if (!state.result) return;
     if (!state.evaluation) {
-      state.result.textContent = "Centra el objeto real en el mapa y toca \xABEvaluar centro\xBB.";
+      state.result.textContent = state.locationMessage;
       return;
     }
     const assessment = assessPoint(state.evaluation, [...state.pois.values()]);
@@ -5373,19 +5443,25 @@
     const s17Text = assessment.s17References.length ? `S17: ${assessment.s17References.length} referencia(s) observada(s)` : "S17: sin referencias observadas";
     const s14Text = `S14: ${assessment.s14References.length} referencia(s) observada(s)`;
     const distanceText = nearest ? `${nearest.meters.toFixed(1)} m a \xAB${nearest.poi.title}\xBB (${nearest.poi.gameState})` : "sin referencias clasificadas en el juego";
+    const sourceText = state.evaluationSource === "gps" ? `Punto GPS${state.gpsAccuracy ? ` (precisi\xF3n \xB1${Math.round(state.gpsAccuracy)} m)` : ""}` : state.evaluationSource === "toque" ? "Punto tocado en el mapa" : state.evaluationSource === "candidato" ? "Candidato local" : "Centro del mapa";
     state.result.innerHTML = `
     <strong>${within22 ? "Conflicto de 22 m" : "Revisi\xF3n de 22 m"}</strong>
     <span>${within22 ? "Hay una referencia en juego a menos de 22 m." : "No se detect\xF3 una referencia en juego a menos de 22 m en los datos cargados."}</span>
     <span>${s17Text}</span>
     <span>${s14Text}</span>
     <span>M\xE1s cercana: ${distanceText}</span>
+    <span>${sourceText}: ${state.evaluation.lat.toFixed(6)}, ${state.evaluation.lng.toFixed(6)}</span>
     <small>Resultado local y orientativo: no garantiza inclusi\xF3n en Pok\xE9mon GO ni activaci\xF3n de un nodo.</small>`;
   }
   function clearVisuals() {
     state.polygons.forEach((polygon) => polygon.setMap?.(null));
     state.circles.forEach((circle) => circle.setMap?.(null));
+    state.markers.forEach((marker) => marker.setMap?.(null));
+    state.candidateMarkers.forEach((marker) => marker.setMap?.(null));
     state.polygons = [];
     state.circles = [];
+    state.markers = [];
+    state.candidateMarkers = [];
   }
   function addCellGeometry(geometry, color, opacity) {
     const google = window.google;
@@ -5431,6 +5507,34 @@
     if (state.evaluation) {
       if (state.showS17) addCellGeometry(s2Geometry(state.evaluation, 17), state.s17Color, 0.16);
       if (state.showS14) addCellGeometry(s2Geometry(state.evaluation, 14), state.s14Color, 0.1);
+      const evaluationMarker = new window.google.maps.Circle({
+        center: state.evaluation,
+        radius: 7,
+        strokeColor: "#125eac",
+        strokeOpacity: 1,
+        strokeWeight: 2,
+        fillColor: "#e7f2ff",
+        fillOpacity: 1,
+        clickable: false,
+        zIndex: 97,
+        map: state.map
+      });
+      state.markers.push(evaluationMarker);
+      if (state.evaluationSource === "gps" && state.gpsAccuracy) {
+        const accuracyMarker = new window.google.maps.Circle({
+          center: state.evaluation,
+          radius: Math.max(5, state.gpsAccuracy),
+          strokeColor: "#6e42bd",
+          strokeOpacity: 0.75,
+          strokeWeight: 1.5,
+          fillColor: "#6e42bd",
+          fillOpacity: 0.1,
+          clickable: false,
+          zIndex: 96,
+          map: state.map
+        });
+        state.markers.push(accuracyMarker);
+      }
     }
     if (state.showCircles) {
       [...state.pois.values()].filter((poi) => poi.gameState === "in-game" && poi.is22mReference).slice(0, MAX_DRAWN_CIRCLES).forEach((poi) => {
@@ -5449,18 +5553,147 @@
         state.circles.push(circle);
       });
     }
+    state.candidates.forEach((candidate) => {
+      const marker = new window.google.maps.Circle({
+        center: candidate,
+        radius: 8,
+        strokeColor: "#6e42bd",
+        strokeOpacity: 1,
+        strokeWeight: 2,
+        fillColor: "#d9c6ff",
+        fillOpacity: 0.9,
+        clickable: false,
+        zIndex: 95,
+        map: state.map
+      });
+      state.candidateMarkers.push(marker);
+    });
+    renderCandidates();
     updatePanel();
   }
   function evaluateCenter() {
     const center = state.map?.getCenter?.();
     if (!center) return;
     state.evaluation = { lat: center.lat(), lng: center.lng() };
+    state.evaluationSource = "centro";
+    state.gpsAccuracy = null;
+    state.locationMessage = "Centro del mapa evaluado.";
     redraw();
+  }
+  function evaluatePoint(point, source) {
+    state.evaluation = point;
+    state.evaluationSource = source;
+    if (source !== "gps") state.gpsAccuracy = null;
+    state.locationMessage = source === "toque" ? "Punto tocado evaluado." : source === "gps" ? "Ubicaci\xF3n GPS evaluada." : "Candidato local evaluado.";
+    redraw();
+  }
+  function locateMe() {
+    if (!navigator.geolocation) {
+      state.locationMessage = "Este navegador no ofrece ubicaci\xF3n GPS.";
+      updatePanel();
+      return;
+    }
+    state.locationMessage = "Solicitando ubicaci\xF3n GPS\u2026";
+    updatePanel();
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const point = { lat: position.coords.latitude, lng: position.coords.longitude };
+        state.gpsAccuracy = position.coords.accuracy;
+        state.map?.panTo?.(point);
+        evaluatePoint(point, "gps");
+      },
+      () => {
+        state.locationMessage = "No se obtuvo GPS. Revisa el permiso de ubicaci\xF3n de Firefox.";
+        updatePanel();
+      },
+      { enableHighAccuracy: true, timeout: 12e3, maximumAge: 5e3 }
+    );
   }
   function clearLocalData() {
     state.pois.clear();
     state.evaluation = null;
+    state.evaluationSource = null;
+    state.gpsAccuracy = null;
+    state.locationMessage = "Datos del mapa limpiados. Toca el mapa para evaluar un punto.";
     redraw();
+  }
+  function persistCandidates() {
+    if (!candidateStorage || !saveCandidates(candidateStorage, state.candidates)) {
+      state.locationMessage = "No se pudieron guardar candidatos locales. Revisa el almacenamiento del navegador.";
+      updatePanel();
+      return false;
+    }
+    return true;
+  }
+  function renderCandidates() {
+    if (state.candidateCount) state.candidateCount.textContent = String(state.candidates.length);
+    const list = state.candidateList;
+    if (!list) return;
+    list.replaceChildren();
+    if (!state.candidates.length) {
+      const empty = document.createElement("p");
+      empty.className = "hws-candidate-empty";
+      empty.textContent = "No hay candidatos guardados en este navegador.";
+      list.appendChild(empty);
+      return;
+    }
+    state.candidates.forEach((candidate) => {
+      const row = document.createElement("div");
+      row.className = "hws-candidate-row";
+      const open = document.createElement("button");
+      open.className = "hws-candidate-open";
+      open.textContent = `${candidate.title} \xB7 ${candidate.lat.toFixed(5)}, ${candidate.lng.toFixed(5)}`;
+      open.addEventListener("click", () => {
+        state.map?.panTo?.(candidate);
+        evaluatePoint(candidate, "candidato");
+      });
+      const remove = document.createElement("button");
+      remove.className = "hws-candidate-remove";
+      remove.setAttribute("aria-label", `Eliminar ${candidate.title}`);
+      remove.textContent = "\xD7";
+      remove.addEventListener("click", () => {
+        const before = state.candidates;
+        state.candidates = state.candidates.filter((item) => item.id !== candidate.id);
+        if (!persistCandidates()) state.candidates = before;
+        redraw();
+      });
+      row.append(open, remove);
+      if (candidate.note) {
+        const note = document.createElement("small");
+        note.textContent = candidate.note;
+        row.appendChild(note);
+      }
+      list.appendChild(row);
+    });
+  }
+  function addCandidate() {
+    if (!state.evaluation) {
+      state.locationMessage = "Primero toca un punto, usa GPS o eval\xFAa el centro antes de guardar un candidato.";
+      updatePanel();
+      return;
+    }
+    const titleInput = document.getElementById("hws-candidate-title");
+    const noteInput = document.getElementById("hws-candidate-note");
+    const candidate = createCandidate(state.evaluation, titleInput?.value ?? "", noteInput?.value ?? "");
+    const before = state.candidates;
+    state.candidates = [candidate, ...state.candidates];
+    if (!persistCandidates()) {
+      state.candidates = before;
+      return;
+    }
+    if (titleInput) titleInput.value = "";
+    if (noteInput) noteInput.value = "";
+    state.locationMessage = "Candidato guardado \xFAnicamente en este navegador.";
+    redraw();
+  }
+  function clearCandidates() {
+    const before = state.candidates;
+    state.candidates = [];
+    if (!persistCandidates()) state.candidates = before;
+    else {
+      state.locationMessage = "Candidatos locales eliminados.";
+      redraw();
+    }
   }
   function paletteMarkup(layer) {
     const current = layer === "s17" ? state.s17Color : state.s14Color;
@@ -5478,6 +5711,8 @@
       <header><strong>Hijuelas Scout</strong><button id="hws-close" aria-label="Cerrar">\xD7</button></header>
       <p id="hws-counter">0 referencias en memoria</p>
       <button id="hws-evaluate" class="hws-primary">Evaluar centro</button>
+      <button id="hws-location" class="hws-location">Mi ubicaci\xF3n</button>
+      <p class="hws-hint">Toca directamente el mapa para evaluar ese punto. GPS solo se solicita al usar \xABMi ubicaci\xF3n\xBB.</p>
       <div class="hws-switches">
         <label><input id="hws-s17" type="checkbox" checked> S17</label>
         <label><input id="hws-s14" type="checkbox" checked> S14</label>
@@ -5488,6 +5723,14 @@
         <div class="hws-color-row"><span>S17</span><div class="hws-palette">${paletteMarkup("s17")}</div></div>
         <div class="hws-color-row"><span>S14</span><div class="hws-palette">${paletteMarkup("s14")}</div></div>
         <label class="hws-width">Grosor <select id="hws-width"><option value="1">Est\xE1ndar</option><option value="2">Gruesa (2\xD7)</option><option value="3">Muy gruesa (3\xD7)</option></select></label>
+      </details>
+      <details class="hws-candidates">
+        <summary>Candidatos locales (<span id="hws-candidate-count">0</span>)</summary>
+        <input id="hws-candidate-title" maxlength="80" placeholder="Nombre del objeto real">
+        <textarea id="hws-candidate-note" maxlength="600" placeholder="Notas de visita o foto pendiente"></textarea>
+        <button id="hws-save-candidate" class="hws-candidate-save">Guardar punto evaluado</button>
+        <div id="hws-candidate-list"></div>
+        <button id="hws-clear-candidates" class="hws-candidate-clear">Borrar todos los candidatos</button>
       </details>
       <div id="hws-result"></div>
       <button id="hws-clear" class="hws-secondary">Limpiar datos locales</button>
@@ -5500,8 +5743,9 @@
     #hws-toggle{width:56px;height:56px;border:0;border-radius:28px;background:#1e5d8c;color:#fff;font-weight:800;font-size:17px;box-shadow:0 6px 18px #0006}
     #hws-panel{position:absolute;right:0;bottom:68px;width:min(330px,calc(100vw - 32px));max-height:68vh;overflow:auto;background:#f7f4ed;border-radius:18px;box-shadow:0 10px 30px #0007;padding:14px;box-sizing:border-box}
     #hws-panel header{display:flex;justify-content:space-between;align-items:center;font-size:16px}#hws-close{border:0;background:transparent;font-size:28px;line-height:1;color:#15202b}
-    #hws-counter{margin:8px 0 10px;color:#52606d;font-size:12px}.hws-primary,.hws-secondary{width:100%;border:0;border-radius:12px;padding:12px;font-weight:700;font-size:14px}.hws-primary{background:#1f6f54;color:white}.hws-secondary{margin-top:10px;background:#e8e0d2;color:#483a2d}.hws-switches{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;font-size:13px}.hws-switches label{display:flex;gap:4px;align-items:center}
+    #hws-counter{margin:8px 0 10px;color:#52606d;font-size:12px}.hws-primary,.hws-secondary,.hws-location{width:100%;border:0;border-radius:12px;padding:12px;font-weight:700;font-size:14px}.hws-primary{background:#1f6f54;color:white}.hws-location{margin-top:8px;background:#e4eef8;color:#174b70}.hws-secondary{margin-top:10px;background:#e8e0d2;color:#483a2d}.hws-hint{margin:8px 0 0;color:#52606d;font-size:11px;line-height:1.35}.hws-switches{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;font-size:13px}.hws-switches label{display:flex;gap:4px;align-items:center}
     #hws-style{margin:10px 0}.hws-style summary{cursor:pointer;font-size:13px;font-weight:700;margin:9px 0}.hws-color-row{display:flex;align-items:center;gap:9px;margin:7px 0;font-size:12px;font-weight:700}.hws-color-row>span{width:26px}.hws-palette{display:flex;gap:5px;flex-wrap:wrap}.hws-color{width:21px;height:21px;border-radius:50%;border:2px solid #fff;background:var(--hws-color);box-shadow:0 0 0 1px #65717b;box-sizing:border-box}.hws-color--active{box-shadow:0 0 0 3px #15202b;transform:scale(1.05)}.hws-width{display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:12px;font-weight:700}.hws-width select{border:1px solid #b9c3c8;border-radius:8px;background:#fff;padding:6px;font-size:12px;color:#15202b}
+    .hws-candidates{margin:10px 0}.hws-candidates summary{cursor:pointer;font-size:13px;font-weight:700}.hws-candidates input,.hws-candidates textarea{width:100%;box-sizing:border-box;border:1px solid #b9c3c8;border-radius:8px;background:#fff;color:#15202b;padding:8px;margin-top:8px;font:inherit;font-size:12px}.hws-candidates textarea{min-height:54px;resize:vertical}.hws-candidate-save,.hws-candidate-clear{width:100%;border:0;border-radius:9px;padding:9px;font-weight:700;font-size:12px;margin-top:7px}.hws-candidate-save{background:#6e42bd;color:#fff}.hws-candidate-clear{background:#eee8f7;color:#4c2f7d}.hws-candidate-empty{font-size:11px;color:#69727d;margin:9px 0}.hws-candidate-row{display:grid;grid-template-columns:1fr auto;gap:3px 7px;padding:8px 0;border-bottom:1px solid #ddd7cb}.hws-candidate-open{border:0;background:transparent;padding:0;text-align:left;color:#174b70;font-size:12px;font-weight:700;line-height:1.3}.hws-candidate-remove{border:0;border-radius:50%;width:22px;height:22px;background:#f3d6d2;color:#a52b21;font-size:18px;line-height:1}.hws-candidate-row small{grid-column:1/-1;color:#69727d;font-size:11px;line-height:1.3}
     #hws-result{display:flex;flex-direction:column;gap:6px;background:#fff;border-radius:12px;padding:11px;font-size:12px;line-height:1.35}#hws-result strong{font-size:13px}#hws-result small{color:#69727d;margin-top:2px}#hws-panel footer{font-size:10px;line-height:1.35;color:#69727d;margin-top:10px}
   `;
     document.head.appendChild(style);
@@ -5509,10 +5753,15 @@
     state.panel = panel;
     state.counter = root.querySelector("#hws-counter");
     state.result = root.querySelector("#hws-result");
+    state.candidateList = root.querySelector("#hws-candidate-list");
+    state.candidateCount = root.querySelector("#hws-candidate-count");
     root.querySelector("#hws-toggle")?.addEventListener("click", () => panel.hidden = !panel.hidden);
     root.querySelector("#hws-close")?.addEventListener("click", () => panel.hidden = true);
     root.querySelector("#hws-evaluate")?.addEventListener("click", evaluateCenter);
+    root.querySelector("#hws-location")?.addEventListener("click", locateMe);
     root.querySelector("#hws-clear")?.addEventListener("click", clearLocalData);
+    root.querySelector("#hws-save-candidate")?.addEventListener("click", addCandidate);
+    root.querySelector("#hws-clear-candidates")?.addEventListener("click", clearCandidates);
     root.querySelector("#hws-s17").addEventListener("change", (event) => {
       state.showS17 = event.target.checked;
       redraw();
@@ -5543,6 +5792,7 @@
       redraw();
     });
     updatePanel();
+    renderCandidates();
   }
   function installMap() {
     if (!mapIsActive()) return;
@@ -5553,6 +5803,11 @@
     state.map = map;
     if (state.mapClickListener?.remove) state.mapClickListener.remove();
     state.mapClickListener = map.addListener?.("idle", () => redraw());
+    map.addListener?.("click", (event) => {
+      const latLng = event?.latLng;
+      if (!latLng) return;
+      evaluatePoint({ lat: latLng.lat(), lng: latLng.lng() }, "toque");
+    });
     createUi();
     redraw();
   }
