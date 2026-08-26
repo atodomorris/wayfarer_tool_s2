@@ -4,7 +4,7 @@
 
 Hijuelas Wayspot Scout Overlay es un userscript propio para el mapa actual de Wayfarer. Dibuja **todas las celdas S17 y S14 que intersectan el área visible**, incluso cuando no contienen un Wayspot cargado. Permite evaluar el centro de la vista y dibuja círculos de 22 metros alrededor de las referencias clasificadas como «en juego» en la respuesta actual del mapa.
 
-No se integra con la aplicación anterior, no usa Google Maps propio ni necesita una API de pago. Se ejecuta solo dentro de `https://wayfarer.nianticlabs.com/new/mapview*`.
+No se integra con la aplicación anterior, no usa Google Maps propio ni necesita una API de pago. Se ejecuta únicamente dentro de las rutas de mapa `https://wayfarer.scopely.com/new/mapview*` y `https://wayfarer.nianticlabs.com/new/mapview*`.
 
 > **Advertencia de cuenta.** Es una herramienta no oficial. Usa el script bajo tu responsabilidad y revísalo antes de instalarlo. No lo uses para enviar, editar o automatizar nominaciones.
 
@@ -20,15 +20,15 @@ No se integra con la aplicación anterior, no usa Google Maps propio ni necesita
 
 ## Instalación y actualizaciones en Android
 
-1. Instala **Firefox para Android** y agrega **Violentmonkey** desde el catálogo oficial de complementos de Firefox.
-2. En Violentmonkey, elimina o desactiva la instalación anterior llamada **Hijuelas Wayspot Scout Overlay**. Es una única migración para evitar scripts duplicados.
-3. Abre este enlace desde Firefox: [Instalar Hijuelas Wayspot Scout Overlay](https://raw.githubusercontent.com/atodomorris/wayfarer_tool_s2/main/hijuelas-wayspot-scout.user.js). Violentmonkey abrirá su instalador; pulsa **Instalar**. No copies ni pegues código.
-4. Después, abre Wayfarer en Firefox, inicia sesión por tu cuenta y visita **Mapa**. No ejecutes el script en las pantallas de envío o revisión.
+1. Instala **Firefox para Android** y agrega **Tampermonkey** desde el catálogo oficial de complementos de Firefox.
+2. En Tampermonkey, confirma que **Hijuelas Wayspot Scout Overlay** está habilitado. Mantén una única instalación para evitar scripts duplicados.
+3. Abre este enlace desde Firefox: [Instalar Hijuelas Wayspot Scout Overlay](https://raw.githubusercontent.com/atodomorris/wayfarer_tool_s2/main/hijuelas-wayspot-scout.user.js). Tampermonkey abrirá su instalador; pulsa **Instalar** o **Actualizar**. No copies ni pegues código.
+4. Después, abre Wayfarer en Firefox, inicia sesión por tu cuenta y visita **Mapa** en `wayfarer.scopely.com/new/mapview`. No ejecutes el script en las pantallas de envío o revisión.
 5. Acerca el mapa hasta que Wayfarer cargue los Wayspots. Pulsa el botón azul **S2**, activa las capas deseadas y elige **Evaluar centro** con el objeto físico centrado.
 6. En **Estilo de celdas**, elige independientemente uno de diez colores para S17 y S14. En **Grosor**, «Gruesa» duplica el trazo estándar y «Muy gruesa» lo triplica. Estos ajustes se aplican solo a la pestaña actual.
 7. La cuadrícula se recalcula al terminar de mover o ampliar el mapa. El panel mostrará «Cuadrícula completa» junto con el número de celdas dibujadas. Si el área requiere más de 1.500 S17 o 350 S14, no se dibuja una cuadrícula parcial: acerca el mapa hasta que el aviso desaparezca.
 
-Para cada actualización futura, abre Violentmonkey, busca Hijuelas Wayspot Scout Overlay y toca **Buscar actualizaciones**. La versión actual ya incluye una URL estable, por lo que el gestor descargará e instalará la versión nueva sin copiar el archivo completo.
+Para cada actualización futura, abre Tampermonkey, busca Hijuelas Wayspot Scout Overlay y toca **Buscar actualizaciones**. La versión actual ya incluye una URL estable, por lo que el gestor descargará e instalará la versión nueva sin copiar el archivo completo. Desde la versión 0.4.2 el script cubre el dominio actual `wayfarer.scopely.com` y conserva el dominio anterior por compatibilidad.
 
 ## Si Violentmonkey aparece vacío
 

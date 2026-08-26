@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name         Hijuelas Wayspot Scout Overlay
 // @namespace    https://hijuelas-wayspot-scout.local/
-// @version      0.4.1
+// @version      0.4.2
 // @description  Lectura local S14/S17 y regla empírica de 22 m sobre el mapa de Wayfarer.
 // @match        https://wayfarer.nianticlabs.com/new/mapview*
+// @match        https://wayfarer.scopely.com/new/mapview*
 // @updateURL    https://raw.githubusercontent.com/atodomorris/wayfarer_tool_s2/main/hijuelas-wayspot-scout.user.js
 // @downloadURL  https://raw.githubusercontent.com/atodomorris/wayfarer_tool_s2/main/hijuelas-wayspot-scout.user.js
 // @supportURL   https://github.com/atodomorris/wayfarer_tool_s2/issues
