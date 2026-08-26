@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hijuelas Wayspot Scout Overlay
 // @namespace    https://hijuelas-wayspot-scout.local/
-// @version      0.6.0
+// @version      0.6.1
 // @description  Lectura local S14/S17 y regla empírica de 22 m sobre el mapa de Wayfarer.
 // @match        https://wayfarer.nianticlabs.com/new/mapview*
 // @match        https://wayfarer.scopely.com/new/mapview*
@@ -5403,8 +5403,7 @@
     candidateMarkers: [],
     evaluation: null,
     evaluationSource: null,
-    gpsAccuracy: null,
-    locationMessage: "Toca el mapa para evaluar un punto, o usa tu ubicaci\xF3n.",
+    locationMessage: "Toca un punto del mapa para evaluar su S17, S14 y distancia de 22 m.",
     showS17: true,
     showS14: true,
     showCircles: true,
@@ -5448,29 +5447,54 @@
   }
   function updatePanel() {
     const loaded = countPoiKinds([...state.pois.values()]);
-    if (state.counter) state.counter.textContent = `${state.gridMessage} \xB7 Cargados: ${state.pois.size} \xB7 P ${loaded.pokestop} \xB7 G ${loaded.gym} \xB7 N ${loaded.powerspot}`;
+    if (state.counter) state.counter.textContent = `${state.gridMessage} \xB7 ${state.pois.size} referencias cargadas`;
     if (!state.result) return;
     if (!state.evaluation) {
-      state.result.textContent = state.locationMessage;
+      renderCountCards(loaded, "Conteo de referencias cargadas en la vista actual");
+      state.result.innerHTML = `<strong>Toca un punto del mapa</strong><span>${state.locationMessage}</span><small>Los contadores superiores muestran los datos que Wayfarer ya carg\xF3 en esta vista.</small>`;
       return;
     }
     const assessment = assessPoint(state.evaluation, [...state.pois.values()]);
+    renderCountCards(assessment.s14Counts, `Celda S14 del punto \xB7 ${assessment.s14References.length} referencia(s)`);
     const nearest = assessment.nearestInGame;
     const within22 = nearest && nearest.meters < 22;
-    const formatCounts = (counts) => `P ${counts.pokestop} \xB7 G ${counts.gym} \xB7 N ${counts.powerspot}${counts.other ? ` \xB7 Otros ${counts.other}` : ""}`;
-    const s17Text = assessment.s17References.length ? `S17: ${assessment.s17References.length} referencia(s) \xB7 ${formatCounts(assessment.s17Counts)}` : "S17: sin referencias observadas";
-    const s14Text = `S14 del punto: ${assessment.s14References.length} referencia(s) \xB7 ${formatCounts(assessment.s14Counts)}`;
+    const s17Text = assessment.s17References.length ? `S17: ${assessment.s17References.length} referencia(s) observada(s)` : "S17: sin referencias observadas";
+    const otherText = assessment.s14Counts.other ? ` \xB7 ${assessment.s14Counts.other} otra(s) referencia(s)` : "";
     const distanceText = nearest ? `${nearest.meters.toFixed(1)} m a \xAB${nearest.poi.title}\xBB (${nearest.poi.gameState})` : "sin referencias clasificadas en el juego";
-    const sourceText = state.evaluationSource === "gps" ? `Punto GPS${state.gpsAccuracy ? ` (precisi\xF3n \xB1${Math.round(state.gpsAccuracy)} m)` : ""}` : state.evaluationSource === "toque" ? "Punto tocado en el mapa" : state.evaluationSource === "candidato" ? "Candidato local" : "Centro del mapa";
+    const sourceText = state.evaluationSource === "candidato" ? "Candidato local" : "Punto tocado en el mapa";
     state.result.innerHTML = `
     <strong>${within22 ? "Conflicto de 22 m" : "Revisi\xF3n de 22 m"}</strong>
     <span>${within22 ? "Hay una referencia en juego a menos de 22 m." : "No se detect\xF3 una referencia en juego a menos de 22 m en los datos cargados."}</span>
     <span>${s17Text}</span>
-    <span><strong>Conteo de la celda S14 seleccionada</strong></span>
-    <span>${s14Text}</span>
+    <span>Celda S14: ${assessment.s14References.length} referencia(s)${otherText}</span>
     <span>M\xE1s cercana: ${distanceText}</span>
     <span>${sourceText}: ${state.evaluation.lat.toFixed(6)}, ${state.evaluation.lng.toFixed(6)}</span>
     <small>Resultado local y orientativo: no garantiza inclusi\xF3n en Pok\xE9mon GO ni activaci\xF3n de un nodo.</small>`;
+  }
+  function contrastForColor(color) {
+    const hex = color.replace("#", "");
+    if (!/^[0-9a-f]{6}$/i.test(hex)) return "#ffffff";
+    const red = Number.parseInt(hex.slice(0, 2), 16);
+    const green = Number.parseInt(hex.slice(2, 4), 16);
+    const blue = Number.parseInt(hex.slice(4, 6), 16);
+    return red * 0.299 + green * 0.587 + blue * 0.114 > 166 ? "#102132" : "#ffffff";
+  }
+  function renderCountCards(counts, context) {
+    const contextElement = document.getElementById("hws-count-context");
+    if (contextElement) contextElement.textContent = context;
+    const cards = [
+      ["pokestop", "Pok\xE9paradas", state.pokestopColor],
+      ["gym", "Gimnasios", state.gymColor],
+      ["powerspot", "Nodos", state.powerspotColor]
+    ];
+    cards.forEach(([kind, label, color]) => {
+      const number = document.getElementById(`hws-count-${kind}`);
+      if (!number) return;
+      number.textContent = String(counts[kind]);
+      number.style.background = color;
+      number.style.color = contrastForColor(color);
+      number.setAttribute("aria-label", `${counts[kind]} ${label}`);
+    });
   }
   function clearVisuals() {
     state.polygons.forEach((polygon) => polygon.setMap?.(null));
@@ -5543,21 +5567,6 @@
         map: state.map
       });
       state.markers.push(evaluationMarker);
-      if (state.evaluationSource === "gps" && state.gpsAccuracy) {
-        const accuracyMarker = new window.google.maps.Circle({
-          center: state.evaluation,
-          radius: Math.max(5, state.gpsAccuracy),
-          strokeColor: "#6e42bd",
-          strokeOpacity: 0.75,
-          strokeWeight: 1.5,
-          fillColor: "#6e42bd",
-          fillOpacity: 0.1,
-          clickable: false,
-          zIndex: 96,
-          map: state.map
-        });
-        state.markers.push(accuracyMarker);
-      }
     }
     if (state.showCircles) {
       [...state.pois.values()].filter((poi) => poi.gameState === "in-game" && poi.is22mReference).slice(0, MAX_DRAWN_CIRCLES).forEach((poi) => {
@@ -5595,49 +5604,16 @@
     renderCandidates();
     updatePanel();
   }
-  function evaluateCenter() {
-    const center = state.map?.getCenter?.();
-    if (!center) return;
-    state.evaluation = { lat: center.lat(), lng: center.lng() };
-    state.evaluationSource = "centro";
-    state.gpsAccuracy = null;
-    state.locationMessage = "Centro del mapa evaluado.";
-    redraw();
-  }
   function evaluatePoint(point, source) {
     state.evaluation = point;
     state.evaluationSource = source;
-    if (source !== "gps") state.gpsAccuracy = null;
-    state.locationMessage = source === "toque" ? "Punto tocado evaluado." : source === "gps" ? "Ubicaci\xF3n GPS evaluada." : "Candidato local evaluado.";
+    state.locationMessage = source === "toque" ? "Punto tocado evaluado." : "Candidato local evaluado.";
     redraw();
-  }
-  function locateMe() {
-    if (!navigator.geolocation) {
-      state.locationMessage = "Este navegador no ofrece ubicaci\xF3n GPS.";
-      updatePanel();
-      return;
-    }
-    state.locationMessage = "Solicitando ubicaci\xF3n GPS\u2026";
-    updatePanel();
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const point = { lat: position.coords.latitude, lng: position.coords.longitude };
-        state.gpsAccuracy = position.coords.accuracy;
-        state.map?.panTo?.(point);
-        evaluatePoint(point, "gps");
-      },
-      () => {
-        state.locationMessage = "No se obtuvo GPS. Revisa el permiso de ubicaci\xF3n de Firefox.";
-        updatePanel();
-      },
-      { enableHighAccuracy: true, timeout: 12e3, maximumAge: 5e3 }
-    );
   }
   function clearLocalData() {
     state.pois.clear();
     state.evaluation = null;
     state.evaluationSource = null;
-    state.gpsAccuracy = null;
     state.locationMessage = "Datos del mapa limpiados. Toca el mapa para evaluar un punto.";
     redraw();
   }
@@ -5734,8 +5710,15 @@
     <section id="hws-panel" aria-label="Hijuelas Wayspot Scout" hidden>
       <header><div><strong>Hijuelas Scout</strong><small>S2 \xB7 22 m \xB7 lectura local</small></div><button id="hws-close" aria-label="Cerrar">\xD7</button></header>
       <p id="hws-counter">Esperando referencias del mapa</p>
+      <section class="hws-counts" aria-label="Conteo de referencias en la celda seleccionada">
+        <div class="hws-count-grid">
+          <div class="hws-count-item"><div id="hws-count-pokestop" class="hws-count-number">0</div><small>Pok\xE9paradas</small></div>
+          <div class="hws-count-item"><div id="hws-count-gym" class="hws-count-number">0</div><small>Gimnasios</small></div>
+          <div class="hws-count-item"><div id="hws-count-powerspot" class="hws-count-number">0</div><small>Nodos</small></div>
+        </div>
+        <small id="hws-count-context">Conteo de referencias cargadas en la vista actual</small>
+      </section>
       <div id="hws-result" class="hws-result"></div>
-      <div class="hws-actions"><button id="hws-evaluate" class="hws-primary">Evaluar centro</button><button id="hws-location" class="hws-location">Mi ubicaci\xF3n</button></div>
       <p class="hws-hint">Toca un objeto en el mapa para ver primero su S17, su S14 y la revisi\xF3n de 22 m.</p>
       <div class="hws-switches">
         <label class="hws-chip"><input id="hws-s17" type="checkbox" checked> S17</label>
@@ -5772,7 +5755,7 @@
     #hws-toggle{width:56px;height:56px;border:1px solid #6dc3ff;background:linear-gradient(145deg,#1671ab,#0d4773);border-radius:28px;color:#fff;font-weight:800;font-size:17px;box-shadow:0 7px 20px #0009}
     #hws-panel{position:absolute;left:0;bottom:68px;width:min(330px,calc(100vw - 32px));max-height:min(60dvh,calc(100dvh - 210px));overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;background:rgba(9,19,31,.94);border:1px solid rgba(157,209,244,.28);border-radius:18px;box-shadow:0 14px 34px #000a;backdrop-filter:blur(16px);padding:12px;box-sizing:border-box}
     #hws-panel header{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;font-size:16px}#hws-panel header div{display:flex;flex-direction:column;gap:1px}#hws-panel header small{color:#9eb3c7;font-size:10px;font-weight:600}#hws-close{border:0;background:transparent;font-size:28px;line-height:1;color:#eaf6ff}
-    #hws-counter{margin:5px 0 9px;color:#a9c5dc;font-size:11px;line-height:1.35}.hws-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}.hws-primary,.hws-secondary,.hws-location{width:100%;border:1px solid transparent;border-radius:10px;padding:10px 8px;font-weight:750;font-size:12px}.hws-primary{background:#168d70;color:#fff}.hws-location{background:#163c5a;border-color:#2d668d;color:#dff2ff}.hws-secondary{margin-top:9px;background:transparent;border-color:#48637a;color:#c9d9e8}.hws-hint{margin:8px 1px 0;color:#a5bbce;font-size:10px;line-height:1.35}.hws-switches{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 8px;font-size:12px}.hws-chip{display:flex;gap:5px;align-items:center;background:#132c41;border:1px solid #335d7e;border-radius:999px;padding:6px 9px;color:#e9f6ff;font-weight:700}.hws-chip input{accent-color:#62c0ff;margin:0}
+    #hws-counter{margin:5px 0 7px;color:#a9c5dc;font-size:11px;line-height:1.35}.hws-counts{margin:0 0 9px;padding:9px;background:rgba(15,38,55,.84);border:1px solid rgba(128,204,251,.26);border-radius:12px}.hws-count-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.hws-count-item{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0}.hws-count-number{display:flex;align-items:center;justify-content:center;width:100%;min-height:45px;border-radius:11px;font-size:25px;font-weight:850;line-height:1;box-shadow:inset 0 1px 0 #ffffff66,0 3px 8px #0005}.hws-count-item small{color:#c0d6e7;font-size:10px;font-weight:700;text-align:center;line-height:1.1}#hws-count-context{display:block;margin-top:8px;color:#93b3c9;font-size:10px;line-height:1.25}.hws-secondary{width:100%;border:1px solid #48637a;border-radius:10px;padding:10px 8px;margin-top:9px;background:transparent;color:#c9d9e8;font-weight:750;font-size:12px}.hws-hint{margin:8px 1px 0;color:#a5bbce;font-size:10px;line-height:1.35}.hws-switches{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 8px;font-size:12px}.hws-chip{display:flex;gap:5px;align-items:center;background:#132c41;border:1px solid #335d7e;border-radius:999px;padding:6px 9px;color:#e9f6ff;font-weight:700}.hws-chip input{accent-color:#62c0ff;margin:0}
     .hws-style,.hws-candidates{margin:8px 0;padding:0 9px;background:rgba(28,51,70,.67);border:1px solid rgba(142,190,224,.19);border-radius:10px}.hws-style summary,.hws-candidates summary{cursor:pointer;padding:10px 0;font-size:12px;font-weight:750;color:#edf7ff}.hws-color-row{display:flex;align-items:center;gap:8px;margin:7px 0;font-size:11px;font-weight:700}.hws-color-row>span{width:49px;color:#b9d0e3}.hws-palette{display:flex;gap:5px;flex-wrap:wrap}.hws-color{width:21px;height:21px;border-radius:50%;border:2px solid #daeafa;background:var(--hws-color);box-shadow:0 0 0 1px #557289;box-sizing:border-box}.hws-color--active{box-shadow:0 0 0 3px #fff;transform:scale(1.05)}.hws-width{display:flex;align-items:center;justify-content:space-between;margin:10px 0;font-size:12px;font-weight:700;color:#dcecf8}.hws-width select{border:1px solid #4b718e;border-radius:8px;background:#10263a;padding:6px;color:#eef8ff;font-size:12px}
     .hws-candidates input,.hws-candidates textarea{width:100%;box-sizing:border-box;border:1px solid #4a6b83;border-radius:8px;background:#10263a;color:#eef8ff;padding:8px;margin-top:7px;font:inherit;font-size:12px}.hws-candidates textarea{min-height:54px;resize:vertical}.hws-candidate-save,.hws-candidate-clear{width:100%;border:0;border-radius:9px;padding:9px;font-weight:750;font-size:12px;margin-top:7px}.hws-candidate-save{background:#7551c8;color:#fff}.hws-candidate-clear{background:#302546;color:#e7dcff}.hws-candidate-empty{font-size:11px;color:#abc0d1;margin:9px 0}.hws-candidate-row{display:grid;grid-template-columns:1fr auto;gap:3px 7px;padding:8px 0;border-bottom:1px solid #365269}.hws-candidate-open{border:0;background:transparent;padding:0;text-align:left;color:#91d3ff;font-size:12px;font-weight:700;line-height:1.3}.hws-candidate-remove{border:0;border-radius:50%;width:22px;height:22px;background:#5b3037;color:#ffd7d2;font-size:18px;line-height:1}.hws-candidate-row small{grid-column:1/-1;color:#abc0d1;font-size:11px;line-height:1.3}
     #hws-result{display:flex;flex-direction:column;gap:5px;background:linear-gradient(145deg,rgba(20,58,82,.9),rgba(13,33,48,.92));border:1px solid rgba(112,202,255,.34);border-radius:12px;padding:10px;font-size:11px;line-height:1.35;color:#d6e8f5}#hws-result strong{font-size:13px;color:#fff}#hws-result small{color:#9fbed2;margin-top:2px}#hws-panel footer{font-size:9px;line-height:1.35;color:#94aec1;margin:9px 1px 0}
@@ -5786,8 +5769,6 @@
     state.candidateCount = root.querySelector("#hws-candidate-count");
     root.querySelector("#hws-toggle")?.addEventListener("click", () => panel.hidden = !panel.hidden);
     root.querySelector("#hws-close")?.addEventListener("click", () => panel.hidden = true);
-    root.querySelector("#hws-evaluate")?.addEventListener("click", evaluateCenter);
-    root.querySelector("#hws-location")?.addEventListener("click", locateMe);
     root.querySelector("#hws-clear")?.addEventListener("click", clearLocalData);
     root.querySelector("#hws-save-candidate")?.addEventListener("click", addCandidate);
     root.querySelector("#hws-clear-candidates")?.addEventListener("click", clearCandidates);
