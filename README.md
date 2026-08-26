@@ -29,6 +29,16 @@ No se integra con la aplicación anterior, no usa Google Maps propio ni necesita
 
 Para cada actualización futura, abre Violentmonkey, busca Hijuelas Wayspot Scout Overlay y toca **Buscar actualizaciones**. La versión actual ya incluye una URL estable, por lo que el gestor descargará e instalará la versión nueva sin copiar el archivo completo.
 
+## Si Violentmonkey aparece vacío
+
+Una lista vacía significa que la extensión perdió su almacenamiento local; no equivale a un script desactivado. Cerrar Firefox por sí solo no debería eliminar una instalación. Revisa si se borraron datos de Firefox, se reinstaló/restableció Violentmonkey, cambiaste de perfil o una herramienta de limpieza de Android eliminó datos de la aplicación.
+
+Para recuperarlo, abre Firefox y visita siempre este enlace estable: [Reinstalar Hijuelas Wayspot Scout Overlay](https://raw.githubusercontent.com/atodomorris/wayfarer_tool_s2/main/hijuelas-wayspot-scout.user.js). Violentmonkey mostrará su instalador; pulsa **Instalar**. No necesitas volver a copiar el código desde Manus.
+
+Después de reinstalar, abre el menú **⋮** de Violentmonkey y busca **Exportar** o **Exportar ZIP**. Guarda esa copia fuera de Firefox (por ejemplo, en Descargas o Drive). La página oficial de Violentmonkey también describe sincronización con Dropbox, OneDrive, Google Drive o WebDAV; úsala solo si aparece en los ajustes de tu versión Android y deseas autorizarla.
+
+> El respaldo ZIP de Violentmonkey protege el script. Los candidatos del Scout se guardan aparte, en el almacenamiento del sitio Wayfarer de Firefox; si se borran los datos del navegador, esos candidatos pueden perderse.
+
 ## Uso de terreno: toque, GPS y candidatos
 
 | Acción | Cómo usarla | Datos que conserva |
