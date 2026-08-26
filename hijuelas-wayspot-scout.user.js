@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hijuelas Wayspot Scout Overlay
 // @namespace    https://hijuelas-wayspot-scout.local/
-// @version      0.5.3
+// @version      0.5.4
 // @description  Lectura local S14/S17 y regla empírica de 22 m sobre el mapa de Wayfarer.
 // @match        https://wayfarer.nianticlabs.com/new/mapview*
 // @match        https://wayfarer.scopely.com/new/mapview*
@@ -5769,7 +5769,7 @@
     document.body.appendChild(root);
     const style = document.createElement("style");
     style.textContent = `
-    #hws-root{position:fixed;left:18px;bottom:calc(env(safe-area-inset-bottom,0px) + 112px);z-index:2147483000;font-family:system-ui,-apple-system,Arial,sans-serif;color:#15202b}
+    #hws-root{position:fixed;left:16px;bottom:26px;z-index:2147483000;font-family:system-ui,-apple-system,Arial,sans-serif;color:#15202b}
     #hws-toggle{width:56px;height:56px;border:0;border-radius:28px;background:#1e5d8c;color:#fff;font-weight:800;font-size:17px;box-shadow:0 6px 18px #0006}
     #hws-panel{position:absolute;left:0;bottom:68px;width:min(330px,calc(100vw - 32px));max-height:min(60dvh,calc(100dvh - 210px));overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;background:#f7f4ed;border-radius:18px;box-shadow:0 10px 30px #0007;padding:14px;box-sizing:border-box}
     #hws-panel header{display:flex;justify-content:space-between;align-items:center;font-size:16px}#hws-close{border:0;background:transparent;font-size:28px;line-height:1;color:#15202b}
