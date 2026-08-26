@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         Hijuelas Wayspot Scout Overlay
 // @namespace    https://hijuelas-wayspot-scout.local/
-// @version      0.4.0
+// @version      0.4.1
 // @description  Lectura local S14/S17 y regla empírica de 22 m sobre el mapa de Wayfarer.
 // @match        https://wayfarer.nianticlabs.com/new/mapview*
 // @updateURL    https://raw.githubusercontent.com/atodomorris/wayfarer_tool_s2/main/hijuelas-wayspot-scout.user.js
 // @downloadURL  https://raw.githubusercontent.com/atodomorris/wayfarer_tool_s2/main/hijuelas-wayspot-scout.user.js
 // @supportURL   https://github.com/atodomorris/wayfarer_tool_s2/issues
+// @sandbox      raw
 // @run-at       document-start
 // @grant        none
 // ==/UserScript==
@@ -5796,8 +5797,13 @@
   }
   function installMap() {
     if (!mapIsActive()) return;
+    createUi();
     const map = findMap();
-    if (!map) return;
+    if (!map) {
+      state.gridMessage = "Esperando el mapa de Wayfarer";
+      updatePanel();
+      return;
+    }
     if (state.map === map) return;
     clearVisuals();
     state.map = map;
@@ -5808,7 +5814,6 @@
       if (!latLng) return;
       evaluatePoint({ lat: latLng.lat(), lng: latLng.lng() }, "toque");
     });
-    createUi();
     redraw();
   }
   function observeGcsResponses() {
