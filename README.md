@@ -24,11 +24,12 @@ No se integra con la aplicación anterior, no usa Google Maps propio ni necesita
 2. En Tampermonkey, confirma que **Hijuelas Wayspot Scout Overlay** está habilitado. Mantén una única instalación para evitar scripts duplicados.
 3. Abre este enlace desde Firefox: [Instalar Hijuelas Wayspot Scout Overlay](https://raw.githubusercontent.com/atodomorris/wayfarer_tool_s2/main/hijuelas-wayspot-scout.user.js). Tampermonkey abrirá su instalador; pulsa **Instalar** o **Actualizar**. No copies ni pegues código.
 4. Después, abre Wayfarer en Firefox, inicia sesión por tu cuenta y visita **Mapa** en `wayfarer.scopely.com/new/mapview`. No ejecutes el script en las pantallas de envío o revisión.
-5. Acerca el mapa hasta que Wayfarer cargue los Wayspots. Pulsa el botón azul **S2**, activa las capas deseadas y elige **Evaluar centro** con el objeto físico centrado.
-6. En **Estilo de celdas**, elige independientemente uno de diez colores para S17 y S14. En **Grosor**, «Gruesa» duplica el trazo estándar y «Muy gruesa» lo triplica. Estos ajustes se aplican solo a la pestaña actual.
-7. La cuadrícula se recalcula al terminar de mover o ampliar el mapa. El panel mostrará «Cuadrícula completa» junto con el número de celdas dibujadas. Si el área requiere más de 1.500 S17 o 350 S14, no se dibuja una cuadrícula parcial: acerca el mapa hasta que el aviso desaparezca.
+5. Acerca el mapa hasta que Wayfarer cargue los Wayspots. Pulsa el botón azul **S2** y toca el objeto físico en el mapa. El punto azul es deliberadamente pequeño y solo se resalta su **S17**, no toda la S14.
+6. El panel muestra el conteo de referencias cargadas y, al evaluar un punto, el desglose de la **celda S14 seleccionada**: `P` para Poképaradas, `G` para gimnasios y `N` para nodos energéticos. El conteo se limita a la respuesta de mapa disponible; no afirma la elegibilidad de una nominación.
+7. En **Estilo de celdas**, elige independientemente uno de diez colores para S17 y S14. En **Colores de círculos 22 m**, ajusta cada tipo por separado. Los valores iniciales son rojo para Poképaradas, verde para gimnasios y amarillo para nodos. En **Grosor**, «Gruesa» duplica el trazo estándar y «Muy gruesa» lo triplica. Estos ajustes se aplican solo a la pestaña actual.
+8. La cuadrícula se recalcula al terminar de mover o ampliar el mapa. El panel mostrará «Cuadrícula completa» junto con el número de celdas dibujadas. Si el área requiere más de 1.500 S17 o 350 S14, no se dibuja una cuadrícula parcial: acerca el mapa hasta que el aviso desaparezca.
 
-Para cada actualización futura, abre Tampermonkey, busca Hijuelas Wayspot Scout Overlay y toca **Buscar actualizaciones**. La versión actual ya incluye una URL estable, por lo que el gestor descargará e instalará la versión nueva sin copiar el archivo completo. Desde la versión 0.4.2 el script cubre el dominio actual `wayfarer.scopely.com` y conserva el dominio anterior por compatibilidad.
+Para cada actualización futura, abre Tampermonkey, busca Hijuelas Wayspot Scout Overlay y toca **Buscar actualizaciones**. La versión actual ya incluye una URL estable, por lo que el gestor descargará e instalará la versión nueva sin copiar el archivo completo. Desde la versión 0.4.2 el script cubre el dominio actual `wayfarer.scopely.com` y conserva el dominio anterior por compatibilidad. La versión 0.5.0 añade colores configurables de radios y conteo por S14.
 
 ## Si Violentmonkey aparece vacío
 
@@ -57,6 +58,8 @@ Los candidatos se muestran como círculos morados. Toca un candidato de la lista
 | `Cuadrícula completa: N S17 · N S14` | Se dibujaron todas las celdas que intersectan el viewport actual, no solo las que contienen referencias observadas. |
 | `S17: sin referencias observadas` | La respuesta cargada no entregó un Wayspot en esa S17; no es una garantía de inclusión. |
 | `S14: N referencias observadas` | Conteo local de la respuesta disponible en esa S14. |
+| `Conteo de la celda S14 seleccionada` | Desglose de las referencias cargadas para la S14 del punto: `P` Poképaradas, `G` gimnasios y `N` nodos. |
+| Círculos rojo, verde y amarillo | Valores iniciales para Poképaradas, gimnasios y nodos respectivamente; se pueden cambiar en el panel. |
 | `Conflicto de 22 m` | Se detectó una referencia en juego a menos de 22 m. |
 | `Revisión de 22 m` | No se detectó referencia en juego dentro de 22 m entre los datos actualmente cargados. |
 

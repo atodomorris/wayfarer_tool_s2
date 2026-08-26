@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hijuelas Wayspot Scout Overlay
 // @namespace    https://hijuelas-wayspot-scout.local/
-// @version      0.4.2
+// @version      0.5.0
 // @description  Lectura local S14/S17 y regla empírica de 22 m sobre el mapa de Wayfarer.
 // @match        https://wayfarer.nianticlabs.com/new/mapview*
 // @match        https://wayfarer.scopely.com/new/mapview*
@@ -5229,19 +5229,16 @@
     if (Array.isArray(gmo) && gmo.length > 0) return "in-game";
     return "unknown";
   }
-  function is22mReference(record) {
-    const gmo = record.gmo;
-    if (Array.isArray(gmo)) {
-      return gmo.some((entry) => {
-        const descriptor2 = JSON.stringify(entry).toUpperCase();
-        return descriptor2.includes("POKESTOP") || descriptor2.includes("GYM") || descriptor2.includes("HOLOHOLO");
-      });
-    }
+  function kindFromRecord(record) {
     const descriptor = JSON.stringify({
-      type: record.poiType ?? record.type ?? record.gameObjectType,
-      status: record.gameStatus ?? record.status
+      gmo: record.gmo,
+      type: record.poiType ?? record.type ?? record.gameObjectType ?? record.gameStatus ?? record.status,
+      games: record.games
     }).toUpperCase();
-    return descriptor.includes("POKESTOP") || descriptor.includes("GYM");
+    if (descriptor.includes("GYM")) return "gym";
+    if (descriptor.includes("POKESTOP") || descriptor.includes("POK\xC9STOP")) return "pokestop";
+    if (descriptor.includes("HOLOHOLO") || descriptor.includes("POWERSPOT") || descriptor.includes("POWER_SPOT")) return "powerspot";
+    return "other";
   }
   function hasPoiIdentity(record) {
     return ["id", "guid", "poiId", "title", "name", "gameStatus", "isInGame", "inGame", "games"].some(
@@ -5275,12 +5272,22 @@
       if (point && hasPoiIdentity(record)) {
         const title = titleFromRecord(record);
         const id = idFromRecord(record, point, title);
-        result.set(id, { id, title, ...point, gameState: statusFromRecord(record), is22mReference: is22mReference(record) });
+        const kind = kindFromRecord(record);
+        result.set(id, { id, title, ...point, gameState: statusFromRecord(record), is22mReference: kind !== "other", kind });
       }
       Object.values(record).forEach((child) => visit(child, depth + 1));
     };
     visit(payload, 0);
     return [...result.values()];
+  }
+  function countPoiKinds(pois) {
+    return pois.reduce(
+      (counts, poi) => {
+        counts[poi.kind] += 1;
+        return counts;
+      },
+      { pokestop: 0, gym: 0, powerspot: 0, other: 0 }
+    );
   }
   function assessPoint(point, pois) {
     const s17 = s2Geometry(point, 17);
@@ -5292,12 +5299,16 @@
     }));
     const inGame = pois.filter((poi) => poi.gameState === "in-game" && poi.is22mReference);
     const nearestInGame = inGame.map((poi) => ({ poi, meters: haversineMeters(point, poi) })).sort((a, b) => a.meters - b.meters)[0] ?? null;
+    const s17References = withCells.filter((item) => item.s17 === s17.id).map((item) => item.poi);
+    const s14References = withCells.filter((item) => item.s14 === s14.id).map((item) => item.poi);
     return {
       point,
       s17,
       s14,
-      s17References: withCells.filter((item) => item.s17 === s17.id).map((item) => item.poi),
-      s14References: withCells.filter((item) => item.s14 === s14.id).map((item) => item.poi),
+      s17References,
+      s14References,
+      s17Counts: countPoiKinds(s17References),
+      s14Counts: countPoiKinds(s14References),
       nearestInGame
     };
   }
@@ -5403,6 +5414,9 @@
     gcsStamp: 0,
     s17Color: "#2a84e8",
     s14Color: "#ffab24",
+    pokestopColor: "#ff4d4f",
+    gymColor: "#1f9d70",
+    powerspotColor: "#f0b429",
     lineMultiplier: 1,
     gridMessage: "Esperando l\xEDmites del mapa",
     candidates: candidateStorage ? loadCandidates(candidateStorage) : [],
@@ -5433,7 +5447,8 @@
     return window.location.pathname.startsWith(MAP_ROUTE);
   }
   function updatePanel() {
-    if (state.counter) state.counter.textContent = `${state.gridMessage} \xB7 ${state.pois.size} referencias cargadas`;
+    const loaded = countPoiKinds([...state.pois.values()]);
+    if (state.counter) state.counter.textContent = `${state.gridMessage} \xB7 Cargados: ${state.pois.size} \xB7 P ${loaded.pokestop} \xB7 G ${loaded.gym} \xB7 N ${loaded.powerspot}`;
     if (!state.result) return;
     if (!state.evaluation) {
       state.result.textContent = state.locationMessage;
@@ -5442,14 +5457,16 @@
     const assessment = assessPoint(state.evaluation, [...state.pois.values()]);
     const nearest = assessment.nearestInGame;
     const within22 = nearest && nearest.meters < 22;
-    const s17Text = assessment.s17References.length ? `S17: ${assessment.s17References.length} referencia(s) observada(s)` : "S17: sin referencias observadas";
-    const s14Text = `S14: ${assessment.s14References.length} referencia(s) observada(s)`;
+    const formatCounts = (counts) => `P ${counts.pokestop} \xB7 G ${counts.gym} \xB7 N ${counts.powerspot}${counts.other ? ` \xB7 Otros ${counts.other}` : ""}`;
+    const s17Text = assessment.s17References.length ? `S17: ${assessment.s17References.length} referencia(s) \xB7 ${formatCounts(assessment.s17Counts)}` : "S17: sin referencias observadas";
+    const s14Text = `S14 del punto: ${assessment.s14References.length} referencia(s) \xB7 ${formatCounts(assessment.s14Counts)}`;
     const distanceText = nearest ? `${nearest.meters.toFixed(1)} m a \xAB${nearest.poi.title}\xBB (${nearest.poi.gameState})` : "sin referencias clasificadas en el juego";
     const sourceText = state.evaluationSource === "gps" ? `Punto GPS${state.gpsAccuracy ? ` (precisi\xF3n \xB1${Math.round(state.gpsAccuracy)} m)` : ""}` : state.evaluationSource === "toque" ? "Punto tocado en el mapa" : state.evaluationSource === "candidato" ? "Candidato local" : "Centro del mapa";
     state.result.innerHTML = `
     <strong>${within22 ? "Conflicto de 22 m" : "Revisi\xF3n de 22 m"}</strong>
     <span>${within22 ? "Hay una referencia en juego a menos de 22 m." : "No se detect\xF3 una referencia en juego a menos de 22 m en los datos cargados."}</span>
     <span>${s17Text}</span>
+    <span><strong>Conteo de la celda S14 seleccionada</strong></span>
     <span>${s14Text}</span>
     <span>M\xE1s cercana: ${distanceText}</span>
     <span>${sourceText}: ${state.evaluation.lat.toFixed(6)}, ${state.evaluation.lng.toFixed(6)}</span>
@@ -5481,6 +5498,11 @@
     });
     state.polygons.push(polygon);
   }
+  function circleColor(kind) {
+    if (kind === "gym") return state.gymColor;
+    if (kind === "powerspot") return state.powerspotColor;
+    return state.pokestopColor;
+  }
   function mapBounds() {
     const bounds = state.map?.getBounds?.();
     if (!bounds) return null;
@@ -5507,14 +5529,13 @@
       state.gridMessage = "Cuadr\xEDcula no disponible: mueve el mapa fuera del antimeridiano";
     }
     if (state.evaluation) {
-      if (state.showS17) addCellGeometry(s2Geometry(state.evaluation, 17), state.s17Color, 0.16);
-      if (state.showS14) addCellGeometry(s2Geometry(state.evaluation, 14), state.s14Color, 0.1);
+      if (state.showS17) addCellGeometry(s2Geometry(state.evaluation, 17), state.s17Color, 0.11);
       const evaluationMarker = new window.google.maps.Circle({
         center: state.evaluation,
-        radius: 7,
+        radius: 3,
         strokeColor: "#125eac",
         strokeOpacity: 1,
-        strokeWeight: 2,
+        strokeWeight: 1.5,
         fillColor: "#e7f2ff",
         fillOpacity: 1,
         clickable: false,
@@ -5540,13 +5561,14 @@
     }
     if (state.showCircles) {
       [...state.pois.values()].filter((poi) => poi.gameState === "in-game" && poi.is22mReference).slice(0, MAX_DRAWN_CIRCLES).forEach((poi) => {
+        const color = circleColor(poi.kind);
         const circle = new window.google.maps.Circle({
           center: poi,
           radius: 22,
-          strokeColor: "#ff4d4f",
+          strokeColor: color,
           strokeOpacity: 0.9,
           strokeWeight: 1.5,
-          fillColor: "#ff4d4f",
+          fillColor: color,
           fillOpacity: 0.08,
           clickable: false,
           zIndex: 92,
@@ -5698,7 +5720,7 @@
     }
   }
   function paletteMarkup(layer) {
-    const current = layer === "s17" ? state.s17Color : state.s14Color;
+    const current = layer === "s17" ? state.s17Color : layer === "s14" ? state.s14Color : layer === "pokestop" ? state.pokestopColor : layer === "gym" ? state.gymColor : state.powerspotColor;
     return CELL_COLORS.map(
       (color) => `<button class="hws-color${color.value === current ? " hws-color--active" : ""}" data-hws-color="${color.value}" data-hws-layer="${layer}" style="--hws-color:${color.value}" title="${color.name}" aria-label="Color ${color.name} para ${layer.toUpperCase()}"></button>`
     ).join("");
@@ -5726,6 +5748,12 @@
         <div class="hws-color-row"><span>S14</span><div class="hws-palette">${paletteMarkup("s14")}</div></div>
         <label class="hws-width">Grosor <select id="hws-width"><option value="1">Est\xE1ndar</option><option value="2">Gruesa (2\xD7)</option><option value="3">Muy gruesa (3\xD7)</option></select></label>
       </details>
+      <details class="hws-style">
+        <summary>Colores de c\xEDrculos 22 m</summary>
+        <div class="hws-color-row"><span>Parada</span><div class="hws-palette">${paletteMarkup("pokestop")}</div></div>
+        <div class="hws-color-row"><span>Gimnasio</span><div class="hws-palette">${paletteMarkup("gym")}</div></div>
+        <div class="hws-color-row"><span>Nodo</span><div class="hws-palette">${paletteMarkup("powerspot")}</div></div>
+      </details>
       <details class="hws-candidates">
         <summary>Candidatos locales (<span id="hws-candidate-count">0</span>)</summary>
         <input id="hws-candidate-title" maxlength="80" placeholder="Nombre del objeto real">
@@ -5746,7 +5774,7 @@
     #hws-panel{position:absolute;right:0;bottom:68px;width:min(330px,calc(100vw - 32px));max-height:68vh;overflow:auto;background:#f7f4ed;border-radius:18px;box-shadow:0 10px 30px #0007;padding:14px;box-sizing:border-box}
     #hws-panel header{display:flex;justify-content:space-between;align-items:center;font-size:16px}#hws-close{border:0;background:transparent;font-size:28px;line-height:1;color:#15202b}
     #hws-counter{margin:8px 0 10px;color:#52606d;font-size:12px}.hws-primary,.hws-secondary,.hws-location{width:100%;border:0;border-radius:12px;padding:12px;font-weight:700;font-size:14px}.hws-primary{background:#1f6f54;color:white}.hws-location{margin-top:8px;background:#e4eef8;color:#174b70}.hws-secondary{margin-top:10px;background:#e8e0d2;color:#483a2d}.hws-hint{margin:8px 0 0;color:#52606d;font-size:11px;line-height:1.35}.hws-switches{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;font-size:13px}.hws-switches label{display:flex;gap:4px;align-items:center}
-    #hws-style{margin:10px 0}.hws-style summary{cursor:pointer;font-size:13px;font-weight:700;margin:9px 0}.hws-color-row{display:flex;align-items:center;gap:9px;margin:7px 0;font-size:12px;font-weight:700}.hws-color-row>span{width:26px}.hws-palette{display:flex;gap:5px;flex-wrap:wrap}.hws-color{width:21px;height:21px;border-radius:50%;border:2px solid #fff;background:var(--hws-color);box-shadow:0 0 0 1px #65717b;box-sizing:border-box}.hws-color--active{box-shadow:0 0 0 3px #15202b;transform:scale(1.05)}.hws-width{display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:12px;font-weight:700}.hws-width select{border:1px solid #b9c3c8;border-radius:8px;background:#fff;padding:6px;font-size:12px;color:#15202b}
+    #hws-style{margin:10px 0}.hws-style summary{cursor:pointer;font-size:13px;font-weight:700;margin:9px 0}.hws-color-row{display:flex;align-items:center;gap:9px;margin:7px 0;font-size:12px;font-weight:700}.hws-color-row>span{width:49px}.hws-palette{display:flex;gap:5px;flex-wrap:wrap}.hws-color{width:21px;height:21px;border-radius:50%;border:2px solid #fff;background:var(--hws-color);box-shadow:0 0 0 1px #65717b;box-sizing:border-box}.hws-color--active{box-shadow:0 0 0 3px #15202b;transform:scale(1.05)}.hws-width{display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:12px;font-weight:700}.hws-width select{border:1px solid #b9c3c8;border-radius:8px;background:#fff;padding:6px;font-size:12px;color:#15202b}
     .hws-candidates{margin:10px 0}.hws-candidates summary{cursor:pointer;font-size:13px;font-weight:700}.hws-candidates input,.hws-candidates textarea{width:100%;box-sizing:border-box;border:1px solid #b9c3c8;border-radius:8px;background:#fff;color:#15202b;padding:8px;margin-top:8px;font:inherit;font-size:12px}.hws-candidates textarea{min-height:54px;resize:vertical}.hws-candidate-save,.hws-candidate-clear{width:100%;border:0;border-radius:9px;padding:9px;font-weight:700;font-size:12px;margin-top:7px}.hws-candidate-save{background:#6e42bd;color:#fff}.hws-candidate-clear{background:#eee8f7;color:#4c2f7d}.hws-candidate-empty{font-size:11px;color:#69727d;margin:9px 0}.hws-candidate-row{display:grid;grid-template-columns:1fr auto;gap:3px 7px;padding:8px 0;border-bottom:1px solid #ddd7cb}.hws-candidate-open{border:0;background:transparent;padding:0;text-align:left;color:#174b70;font-size:12px;font-weight:700;line-height:1.3}.hws-candidate-remove{border:0;border-radius:50%;width:22px;height:22px;background:#f3d6d2;color:#a52b21;font-size:18px;line-height:1}.hws-candidate-row small{grid-column:1/-1;color:#69727d;font-size:11px;line-height:1.3}
     #hws-result{display:flex;flex-direction:column;gap:6px;background:#fff;border-radius:12px;padding:11px;font-size:12px;line-height:1.35}#hws-result strong{font-size:13px}#hws-result small{color:#69727d;margin-top:2px}#hws-panel footer{font-size:10px;line-height:1.35;color:#69727d;margin-top:10px}
   `;
@@ -5780,9 +5808,12 @@
       button.addEventListener("click", () => {
         const color = button.dataset.hwsColor;
         const layer = button.dataset.hwsLayer;
-        if (!color || layer !== "s17" && layer !== "s14") return;
+        if (!color || !["s17", "s14", "pokestop", "gym", "powerspot"].includes(layer ?? "")) return;
         if (layer === "s17") state.s17Color = color;
-        else state.s14Color = color;
+        else if (layer === "s14") state.s14Color = color;
+        else if (layer === "pokestop") state.pokestopColor = color;
+        else if (layer === "gym") state.gymColor = color;
+        else state.powerspotColor = color;
         root.querySelectorAll(`[data-hws-layer="${layer}"]`).forEach((candidate) => {
           candidate.classList.toggle("hws-color--active", candidate.dataset.hwsColor === color);
         });
