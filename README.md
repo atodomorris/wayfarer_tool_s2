@@ -14,7 +14,8 @@ No se integra con la aplicación anterior, no usa Google Maps propio ni necesita
 | --- | --- |
 | Observar la respuesta que el mapa ya recibió para mostrar sus referencias cargadas. | Lanzar solicitudes de red propias o repetir la consulta del mapa. |
 | Leer posición, zoom y centro del mapa ya abierto. | Hacer clic, enviar formularios, modificar nominaciones o realizar acciones de cuenta. |
-| Dibujar polígonos S2, círculos y un panel local. | Usar `localStorage`, IndexedDB, exportaciones o sincronización remota. |
+| Dibujar polígonos S2, círculos y un panel local. | Persistir Wayspots observados, exportarlos o sincronizarlos remotamente. |
+| Guardar candidatos creados explícitamente en `localStorage` del navegador. | Usar IndexedDB o sincronización remota. |
 | Limpiar los datos en memoria con un botón. | Conservar los Wayspots después de recargar la pestaña. |
 
 ## Instalación y actualizaciones en Android
