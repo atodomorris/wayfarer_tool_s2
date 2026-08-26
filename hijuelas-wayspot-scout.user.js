@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hijuelas Wayspot Scout Overlay
 // @namespace    https://hijuelas-wayspot-scout.local/
-// @version      0.5.4
+// @version      0.6.0
 // @description  Lectura local S14/S17 y regla empírica de 22 m sobre el mapa de Wayfarer.
 // @match        https://wayfarer.nianticlabs.com/new/mapview*
 // @match        https://wayfarer.scopely.com/new/mapview*
@@ -5732,18 +5732,18 @@
     root.innerHTML = `
     <button id="hws-toggle" aria-label="Abrir Hijuelas Wayspot Scout">S2</button>
     <section id="hws-panel" aria-label="Hijuelas Wayspot Scout" hidden>
-      <header><strong>Hijuelas Scout</strong><button id="hws-close" aria-label="Cerrar">\xD7</button></header>
-      <p id="hws-counter">0 referencias en memoria</p>
-      <button id="hws-evaluate" class="hws-primary">Evaluar centro</button>
-      <button id="hws-location" class="hws-location">Mi ubicaci\xF3n</button>
-      <p class="hws-hint">Toca directamente el mapa para evaluar ese punto. GPS solo se solicita al usar \xABMi ubicaci\xF3n\xBB.</p>
+      <header><div><strong>Hijuelas Scout</strong><small>S2 \xB7 22 m \xB7 lectura local</small></div><button id="hws-close" aria-label="Cerrar">\xD7</button></header>
+      <p id="hws-counter">Esperando referencias del mapa</p>
+      <div id="hws-result" class="hws-result"></div>
+      <div class="hws-actions"><button id="hws-evaluate" class="hws-primary">Evaluar centro</button><button id="hws-location" class="hws-location">Mi ubicaci\xF3n</button></div>
+      <p class="hws-hint">Toca un objeto en el mapa para ver primero su S17, su S14 y la revisi\xF3n de 22 m.</p>
       <div class="hws-switches">
-        <label><input id="hws-s17" type="checkbox" checked> S17</label>
-        <label><input id="hws-s14" type="checkbox" checked> S14</label>
-        <label><input id="hws-22m" type="checkbox" checked> c\xEDrculos 22 m</label>
+        <label class="hws-chip"><input id="hws-s17" type="checkbox" checked> S17</label>
+        <label class="hws-chip"><input id="hws-s14" type="checkbox" checked> S14</label>
+        <label class="hws-chip"><input id="hws-22m" type="checkbox" checked> 22 m</label>
       </div>
-      <details class="hws-style" open>
-        <summary>Estilo de celdas</summary>
+      <details class="hws-style">
+        <summary>Capas y estilo</summary>
         <div class="hws-color-row"><span>S17</span><div class="hws-palette">${paletteMarkup("s17")}</div></div>
         <div class="hws-color-row"><span>S14</span><div class="hws-palette">${paletteMarkup("s14")}</div></div>
         <label class="hws-width">Grosor <select id="hws-width"><option value="1">Est\xE1ndar</option><option value="2">Gruesa (2\xD7)</option><option value="3">Muy gruesa (3\xD7)</option></select></label>
@@ -5762,21 +5762,20 @@
         <div id="hws-candidate-list"></div>
         <button id="hws-clear-candidates" class="hws-candidate-clear">Borrar todos los candidatos</button>
       </details>
-      <div id="hws-result"></div>
-      <button id="hws-clear" class="hws-secondary">Limpiar datos locales</button>
+      <button id="hws-clear" class="hws-secondary">Limpiar referencias de esta pesta\xF1a</button>
       <footer>Solo lectura local. No env\xEDa, modifica ni guarda informaci\xF3n fuera de esta pesta\xF1a.</footer>
     </section>`;
     document.body.appendChild(root);
     const style = document.createElement("style");
     style.textContent = `
-    #hws-root{position:fixed;left:16px;bottom:26px;z-index:2147483000;font-family:system-ui,-apple-system,Arial,sans-serif;color:#15202b}
-    #hws-toggle{width:56px;height:56px;border:0;border-radius:28px;background:#1e5d8c;color:#fff;font-weight:800;font-size:17px;box-shadow:0 6px 18px #0006}
-    #hws-panel{position:absolute;left:0;bottom:68px;width:min(330px,calc(100vw - 32px));max-height:min(60dvh,calc(100dvh - 210px));overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;background:#f7f4ed;border-radius:18px;box-shadow:0 10px 30px #0007;padding:14px;box-sizing:border-box}
-    #hws-panel header{display:flex;justify-content:space-between;align-items:center;font-size:16px}#hws-close{border:0;background:transparent;font-size:28px;line-height:1;color:#15202b}
-    #hws-counter{margin:8px 0 10px;color:#52606d;font-size:12px}.hws-primary,.hws-secondary,.hws-location{width:100%;border:0;border-radius:12px;padding:12px;font-weight:700;font-size:14px}.hws-primary{background:#1f6f54;color:white}.hws-location{margin-top:8px;background:#e4eef8;color:#174b70}.hws-secondary{margin-top:10px;background:#e8e0d2;color:#483a2d}.hws-hint{margin:8px 0 0;color:#52606d;font-size:11px;line-height:1.35}.hws-switches{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;font-size:13px}.hws-switches label{display:flex;gap:4px;align-items:center}
-    #hws-style{margin:10px 0}.hws-style summary{cursor:pointer;font-size:13px;font-weight:700;margin:9px 0}.hws-color-row{display:flex;align-items:center;gap:9px;margin:7px 0;font-size:12px;font-weight:700}.hws-color-row>span{width:49px}.hws-palette{display:flex;gap:5px;flex-wrap:wrap}.hws-color{width:21px;height:21px;border-radius:50%;border:2px solid #fff;background:var(--hws-color);box-shadow:0 0 0 1px #65717b;box-sizing:border-box}.hws-color--active{box-shadow:0 0 0 3px #15202b;transform:scale(1.05)}.hws-width{display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:12px;font-weight:700}.hws-width select{border:1px solid #b9c3c8;border-radius:8px;background:#fff;padding:6px;font-size:12px;color:#15202b}
-    .hws-candidates{margin:10px 0}.hws-candidates summary{cursor:pointer;font-size:13px;font-weight:700}.hws-candidates input,.hws-candidates textarea{width:100%;box-sizing:border-box;border:1px solid #b9c3c8;border-radius:8px;background:#fff;color:#15202b;padding:8px;margin-top:8px;font:inherit;font-size:12px}.hws-candidates textarea{min-height:54px;resize:vertical}.hws-candidate-save,.hws-candidate-clear{width:100%;border:0;border-radius:9px;padding:9px;font-weight:700;font-size:12px;margin-top:7px}.hws-candidate-save{background:#6e42bd;color:#fff}.hws-candidate-clear{background:#eee8f7;color:#4c2f7d}.hws-candidate-empty{font-size:11px;color:#69727d;margin:9px 0}.hws-candidate-row{display:grid;grid-template-columns:1fr auto;gap:3px 7px;padding:8px 0;border-bottom:1px solid #ddd7cb}.hws-candidate-open{border:0;background:transparent;padding:0;text-align:left;color:#174b70;font-size:12px;font-weight:700;line-height:1.3}.hws-candidate-remove{border:0;border-radius:50%;width:22px;height:22px;background:#f3d6d2;color:#a52b21;font-size:18px;line-height:1}.hws-candidate-row small{grid-column:1/-1;color:#69727d;font-size:11px;line-height:1.3}
-    #hws-result{display:flex;flex-direction:column;gap:6px;background:#fff;border-radius:12px;padding:11px;font-size:12px;line-height:1.35}#hws-result strong{font-size:13px}#hws-result small{color:#69727d;margin-top:2px}#hws-panel footer{font-size:10px;line-height:1.35;color:#69727d;margin-top:10px}
+    #hws-root{position:fixed;left:16px;bottom:26px;z-index:2147483000;font-family:system-ui,-apple-system,Arial,sans-serif;color:#eef6ff}
+    #hws-toggle{width:56px;height:56px;border:1px solid #6dc3ff;background:linear-gradient(145deg,#1671ab,#0d4773);border-radius:28px;color:#fff;font-weight:800;font-size:17px;box-shadow:0 7px 20px #0009}
+    #hws-panel{position:absolute;left:0;bottom:68px;width:min(330px,calc(100vw - 32px));max-height:min(60dvh,calc(100dvh - 210px));overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;background:rgba(9,19,31,.94);border:1px solid rgba(157,209,244,.28);border-radius:18px;box-shadow:0 14px 34px #000a;backdrop-filter:blur(16px);padding:12px;box-sizing:border-box}
+    #hws-panel header{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;font-size:16px}#hws-panel header div{display:flex;flex-direction:column;gap:1px}#hws-panel header small{color:#9eb3c7;font-size:10px;font-weight:600}#hws-close{border:0;background:transparent;font-size:28px;line-height:1;color:#eaf6ff}
+    #hws-counter{margin:5px 0 9px;color:#a9c5dc;font-size:11px;line-height:1.35}.hws-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}.hws-primary,.hws-secondary,.hws-location{width:100%;border:1px solid transparent;border-radius:10px;padding:10px 8px;font-weight:750;font-size:12px}.hws-primary{background:#168d70;color:#fff}.hws-location{background:#163c5a;border-color:#2d668d;color:#dff2ff}.hws-secondary{margin-top:9px;background:transparent;border-color:#48637a;color:#c9d9e8}.hws-hint{margin:8px 1px 0;color:#a5bbce;font-size:10px;line-height:1.35}.hws-switches{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 8px;font-size:12px}.hws-chip{display:flex;gap:5px;align-items:center;background:#132c41;border:1px solid #335d7e;border-radius:999px;padding:6px 9px;color:#e9f6ff;font-weight:700}.hws-chip input{accent-color:#62c0ff;margin:0}
+    .hws-style,.hws-candidates{margin:8px 0;padding:0 9px;background:rgba(28,51,70,.67);border:1px solid rgba(142,190,224,.19);border-radius:10px}.hws-style summary,.hws-candidates summary{cursor:pointer;padding:10px 0;font-size:12px;font-weight:750;color:#edf7ff}.hws-color-row{display:flex;align-items:center;gap:8px;margin:7px 0;font-size:11px;font-weight:700}.hws-color-row>span{width:49px;color:#b9d0e3}.hws-palette{display:flex;gap:5px;flex-wrap:wrap}.hws-color{width:21px;height:21px;border-radius:50%;border:2px solid #daeafa;background:var(--hws-color);box-shadow:0 0 0 1px #557289;box-sizing:border-box}.hws-color--active{box-shadow:0 0 0 3px #fff;transform:scale(1.05)}.hws-width{display:flex;align-items:center;justify-content:space-between;margin:10px 0;font-size:12px;font-weight:700;color:#dcecf8}.hws-width select{border:1px solid #4b718e;border-radius:8px;background:#10263a;padding:6px;color:#eef8ff;font-size:12px}
+    .hws-candidates input,.hws-candidates textarea{width:100%;box-sizing:border-box;border:1px solid #4a6b83;border-radius:8px;background:#10263a;color:#eef8ff;padding:8px;margin-top:7px;font:inherit;font-size:12px}.hws-candidates textarea{min-height:54px;resize:vertical}.hws-candidate-save,.hws-candidate-clear{width:100%;border:0;border-radius:9px;padding:9px;font-weight:750;font-size:12px;margin-top:7px}.hws-candidate-save{background:#7551c8;color:#fff}.hws-candidate-clear{background:#302546;color:#e7dcff}.hws-candidate-empty{font-size:11px;color:#abc0d1;margin:9px 0}.hws-candidate-row{display:grid;grid-template-columns:1fr auto;gap:3px 7px;padding:8px 0;border-bottom:1px solid #365269}.hws-candidate-open{border:0;background:transparent;padding:0;text-align:left;color:#91d3ff;font-size:12px;font-weight:700;line-height:1.3}.hws-candidate-remove{border:0;border-radius:50%;width:22px;height:22px;background:#5b3037;color:#ffd7d2;font-size:18px;line-height:1}.hws-candidate-row small{grid-column:1/-1;color:#abc0d1;font-size:11px;line-height:1.3}
+    #hws-result{display:flex;flex-direction:column;gap:5px;background:linear-gradient(145deg,rgba(20,58,82,.9),rgba(13,33,48,.92));border:1px solid rgba(112,202,255,.34);border-radius:12px;padding:10px;font-size:11px;line-height:1.35;color:#d6e8f5}#hws-result strong{font-size:13px;color:#fff}#hws-result small{color:#9fbed2;margin-top:2px}#hws-panel footer{font-size:9px;line-height:1.35;color:#94aec1;margin:9px 1px 0}
   `;
     document.head.appendChild(style);
     const panel = root.querySelector("#hws-panel");
