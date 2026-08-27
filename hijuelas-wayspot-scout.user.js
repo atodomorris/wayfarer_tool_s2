@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wayfinder — S2 Overlay
 // @namespace    https://hijuelas-wayspot-scout.local/
-// @version      0.7.8
+// @version      0.7.9
 // @description  Herramientas Wayfinder: lectura local S14/S17 y regla empírica de 22 m sobre Wayfarer.
 // @match        https://wayfarer.nianticlabs.com/new/mapview*
 // @match        https://wayfarer.scopely.com/new/mapview*
@@ -5448,7 +5448,6 @@
     showS14: true,
     showCircles: true,
     panel: null,
-    counter: null,
     result: null,
     gcsStamp: 0,
     s17Color: colorPreferences.s17Color,
@@ -5488,16 +5487,15 @@
   }
   function updatePanel() {
     const loaded = countPoiKinds([...state.pois.values()]);
-    if (state.counter) state.counter.textContent = `${state.gridMessage} \xB7 ${state.pois.size} referencias cargadas`;
     if (state.deselectButton) state.deselectButton.hidden = !state.evaluation;
     if (!state.result) return;
     if (!state.evaluation) {
-      renderCountCards(loaded, "Conteo de referencias cargadas en la vista actual");
+      renderCountCards(loaded, "Conteo de Wayspots cargados en la vista actual del mapa");
       state.result.innerHTML = `<strong>Toca un punto del mapa</strong><span>${state.locationMessage}</span><small>Los contadores superiores muestran los datos que Wayfarer ya carg\xF3 en esta vista.</small>`;
       return;
     }
     const assessment = assessPoint(state.evaluation, [...state.pois.values()]);
-    renderCountCards(assessment.s14Counts, `Celda S14 del punto \xB7 ${assessment.s14References.length} referencia(s)`);
+    renderCountCards(assessment.s14Counts, "Conteo de Wayspots de la celda S14 seleccionada.");
     const nearest = assessment.nearestInGame;
     const within22 = nearest && nearest.meters < 22;
     const s17Text = assessment.s17References.length ? `S17: ${assessment.s17References.length} referencia(s) observada(s)` : "S17: sin referencias observadas";
@@ -5772,7 +5770,6 @@
         <label class="hws-chip"><input id="hws-s14" type="checkbox" checked> Celda S14</label>
         <label class="hws-chip"><input id="hws-22m" type="checkbox" checked> Distancia 22m</label>
       </div>
-      <p id="hws-counter">Esperando referencias del mapa</p>
       <section class="hws-counts" aria-label="Conteo de referencias en la celda seleccionada">
         <div class="hws-count-grid">
           <div class="hws-count-item"><div class="hws-count-number">${countIconMarkup("pokestop")}<span id="hws-count-pokestop">0</span></div><small>Pok\xE9paradas</small></div>
@@ -5832,7 +5829,6 @@
     document.head.appendChild(style);
     const panel = root.querySelector("#hws-panel");
     state.panel = panel;
-    state.counter = root.querySelector("#hws-counter");
     state.result = root.querySelector("#hws-result");
     state.candidateList = root.querySelector("#hws-candidate-list");
     state.candidateCount = root.querySelector("#hws-candidate-count");
