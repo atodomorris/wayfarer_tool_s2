@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wayfinder — S2 Overlay
 // @namespace    https://hijuelas-wayspot-scout.local/
-// @version      0.7.3
+// @version      0.7.4
 // @description  Herramientas Wayfinder: lectura local S14/S17 y regla empírica de 22 m sobre Wayfarer.
 // @match        https://wayfarer.nianticlabs.com/new/mapview*
 // @match        https://wayfarer.scopely.com/new/mapview*
@@ -5370,6 +5370,41 @@
     };
   }
 
+  // userscript/src/color-preferences.ts
+  var COLOR_PREFERENCES_STORAGE_KEY = "wayfinder-color-preferences-v1";
+  var DEFAULT_COLOR_PREFERENCES = {
+    pokestopColor: "#2a84e8",
+    gymColor: "#e53935",
+    powerspotColor: "#f0b429",
+    s17Color: "#1f9d70",
+    s14Color: "#f57c00"
+  };
+  var colorKeys = Object.keys(DEFAULT_COLOR_PREFERENCES);
+  function isHexColor(value) {
+    return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value);
+  }
+  function loadColorPreferences(storage) {
+    try {
+      const parsed = JSON.parse(storage.getItem(COLOR_PREFERENCES_STORAGE_KEY) ?? "{}");
+      if (!parsed || typeof parsed !== "object") return { ...DEFAULT_COLOR_PREFERENCES };
+      const input = parsed;
+      return colorKeys.reduce((preferences, key) => {
+        preferences[key] = isHexColor(input[key]) ? input[key] : DEFAULT_COLOR_PREFERENCES[key];
+        return preferences;
+      }, { ...DEFAULT_COLOR_PREFERENCES });
+    } catch {
+      return { ...DEFAULT_COLOR_PREFERENCES };
+    }
+  }
+  function saveColorPreferences(storage, preferences) {
+    try {
+      storage.setItem(COLOR_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   // userscript/src/hijuelas-wayspot-scout.user.ts
   function browserStorage() {
     try {
@@ -5379,6 +5414,7 @@
     }
   }
   var candidateStorage = browserStorage();
+  var colorPreferences = candidateStorage ? loadColorPreferences(candidateStorage) : { ...DEFAULT_COLOR_PREFERENCES };
   var MAP_ROUTE = "/new/mapview";
   var GCS_PATH = "/api/v1/vault/mapview/gcs";
   var MAX_DRAWN_CIRCLES = 220;
@@ -5386,6 +5422,7 @@
   var MAX_VISIBLE_S14 = 350;
   var CELL_COLORS = [
     { value: "#2a84e8", name: "Azul" },
+    { value: "#f0b429", name: "Amarillo" },
     { value: "#ffab24", name: "\xC1mbar" },
     { value: "#e53935", name: "Rojo" },
     { value: "#1f9d70", name: "Verde" },
@@ -5414,11 +5451,11 @@
     counter: null,
     result: null,
     gcsStamp: 0,
-    s17Color: "#2a84e8",
-    s14Color: "#ffab24",
-    pokestopColor: "#ff4d4f",
-    gymColor: "#1f9d70",
-    powerspotColor: "#f0b429",
+    s17Color: colorPreferences.s17Color,
+    s14Color: colorPreferences.s14Color,
+    pokestopColor: colorPreferences.pokestopColor,
+    gymColor: colorPreferences.gymColor,
+    powerspotColor: colorPreferences.powerspotColor,
     lineMultiplier: 1,
     gridMessage: "Esperando l\xEDmites del mapa",
     candidates: candidateStorage ? loadCandidates(candidateStorage) : [],
@@ -5627,6 +5664,17 @@
     }
     return true;
   }
+  function persistColorPreferences() {
+    if (!candidateStorage) return false;
+    const preferences = {
+      s17Color: state.s17Color,
+      s14Color: state.s14Color,
+      pokestopColor: state.pokestopColor,
+      gymColor: state.gymColor,
+      powerspotColor: state.powerspotColor
+    };
+    return saveColorPreferences(candidateStorage, preferences);
+  }
   function renderCandidates() {
     if (state.candidateCount) state.candidateCount.textContent = String(state.candidates.length);
     const list = state.candidateList;
@@ -5767,7 +5815,7 @@
     #hws-root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f5f1ee}
     #hws-toggle{width:48px;height:48px;border:0;background:#151515;border-radius:15px;display:grid;place-items:center;padding:0;box-shadow:0 9px 21px #000b,0 0 0 2px #151515;overflow:hidden}
     #hws-toggle img{width:38px;height:38px;display:block;object-fit:contain}.hws-title{font-size:18px;letter-spacing:-.035em;color:#f5e9e5}
-    #hws-panel{width:min(352px,calc(100vw - 32px));max-height:min(66dvh,calc(100dvh - 184px));background:rgba(20,19,19,.965);border:1px solid rgba(236,100,62,.55);border-radius:22px;box-shadow:0 20px 44px #000d,0 0 0 1px #000;backdrop-filter:blur(20px);padding:14px}
+    #hws-panel{width:min(352px,calc(100vw - 32px));max-height:min(66dvh,calc(100dvh - 184px));background:#010102;border:1px solid rgba(236,100,62,.55);border-radius:22px;box-shadow:0 20px 44px #000d,0 0 0 1px #000;backdrop-filter:blur(20px);padding:14px}
     #hws-panel header{margin:0 0 10px}#hws-close{width:30px;height:30px;border:1px solid #4e3530!important;border-radius:50%;background:#221c1b!important;color:#f5e9e5!important;font-size:25px!important;display:grid;place-items:center}.hws-status{display:flex;gap:6px;margin:-2px 0 9px}.hws-status span{border:1px solid #52342c;border-radius:999px;padding:4px 7px;color:#ed9b82;background:#251b19;font-size:8px;font-weight:800;letter-spacing:.085em}
     #hws-counter{padding:0 1px;color:#bea79f;font-size:10px}.hws-counts{background:linear-gradient(145deg,#211d1c,#171616);border-color:#49332d;border-radius:15px;padding:10px}.hws-count-number{background:#11100f;box-shadow:inset 0 1px 0 #ffffff13,0 3px 10px #0007;border-radius:12px}.hws-count-item small{color:#d9c7c1}#hws-count-context{color:#a99087}
     #hws-result{background:linear-gradient(145deg,#2a211e,#1b1817);border-color:#7e432f;border-left:3px solid #d65331;border-radius:14px;padding:11px;color:#eadcd7}#hws-result strong{color:#fff7f4}#hws-result small,.hws-hint{color:#bea79f}.hws-switches{gap:7px}.hws-chip{background:#211d1c;border-color:#5b3b32;color:#f4e7e2;padding:7px 10px}.hws-chip input{accent-color:#d65331}
@@ -5807,6 +5855,9 @@
         else if (layer === "pokestop") state.pokestopColor = color;
         else if (layer === "gym") state.gymColor = color;
         else state.powerspotColor = color;
+        if (!persistColorPreferences()) {
+          state.locationMessage = "El color se aplic\xF3, pero Firefox no permiti\xF3 guardar la preferencia local.";
+        }
         root.querySelectorAll(`[data-hws-layer="${layer}"]`).forEach((candidate) => {
           candidate.classList.toggle("hws-color--active", candidate.dataset.hwsColor === color);
         });
