@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wayfinder — S2 Overlay
 // @namespace    https://hijuelas-wayspot-scout.local/
-// @version      0.7.5
+// @version      0.7.6
 // @description  Herramientas Wayfinder: lectura local S14/S17 y regla empírica de 22 m sobre Wayfarer.
 // @match        https://wayfarer.nianticlabs.com/new/mapview*
 // @match        https://wayfarer.scopely.com/new/mapview*
@@ -5460,7 +5460,8 @@
     gridMessage: "Esperando l\xEDmites del mapa",
     candidates: candidateStorage ? loadCandidates(candidateStorage) : [],
     candidateList: null,
-    candidateCount: null
+    candidateCount: null,
+    deselectButton: null
   };
   function isMapCandidate(value) {
     return !!value && typeof value.getCenter === "function" && typeof value.getDiv === "function";
@@ -5488,6 +5489,7 @@
   function updatePanel() {
     const loaded = countPoiKinds([...state.pois.values()]);
     if (state.counter) state.counter.textContent = `${state.gridMessage} \xB7 ${state.pois.size} referencias cargadas`;
+    if (state.deselectButton) state.deselectButton.hidden = !state.evaluation;
     if (!state.result) return;
     if (!state.evaluation) {
       renderCountCards(loaded, "Conteo de referencias cargadas en la vista actual");
@@ -5649,6 +5651,12 @@
     state.locationMessage = source === "toque" ? "Punto tocado evaluado." : "Candidato local evaluado.";
     redraw();
   }
+  function clearEvaluation() {
+    state.evaluation = null;
+    state.evaluationSource = null;
+    state.locationMessage = "Vista actual restaurada. Toca otro punto para evaluar su celda.";
+    redraw();
+  }
   function clearLocalData() {
     state.pois.clear();
     state.evaluation = null;
@@ -5769,6 +5777,7 @@
         <small id="hws-count-context">Conteo de referencias cargadas en la vista actual</small>
       </section>
       <div id="hws-result" class="hws-result"></div>
+      <button id="hws-deselect" class="hws-deselect" hidden>Volver a la vista actual</button>
       <p class="hws-hint">Toca un punto del mapa para revisar S17, S14 y la distancia emp\xEDrica de 22 m.</p>
       <div class="hws-switches">
         <label class="hws-chip"><input id="hws-s17" type="checkbox" checked> S17</label>
@@ -5801,7 +5810,7 @@
     document.body.appendChild(root);
     const style = document.createElement("style");
     style.textContent = `
-    #hws-root{position:fixed;left:16px;bottom:26px;z-index:2147483000;font-family:system-ui,-apple-system,Arial,sans-serif;color:#eef6ff}
+    #hws-root{position:fixed;left:16px;bottom:30px;z-index:2147483000;font-family:system-ui,-apple-system,Arial,sans-serif;color:#eef6ff}
     #hws-toggle{width:56px;height:56px;border:1px solid #6dc3ff;background:linear-gradient(145deg,#1671ab,#0d4773);border-radius:28px;color:#fff;font-weight:800;font-size:17px;box-shadow:0 7px 20px #0009}
     #hws-panel{position:absolute;left:0;bottom:68px;width:min(330px,calc(100vw - 32px));max-height:min(60dvh,calc(100dvh - 210px));overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;background:rgba(9,19,31,.94);border:1px solid rgba(157,209,244,.28);border-radius:18px;box-shadow:0 14px 34px #000a;backdrop-filter:blur(16px);padding:12px;box-sizing:border-box}
     #hws-panel header{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;font-size:16px}#hws-panel header div{display:flex;flex-direction:column;gap:1px}#hws-panel header small{color:#9eb3c7;font-size:10px;font-weight:600}#hws-close{border:0;background:transparent;font-size:28px;line-height:1;color:#eaf6ff}
@@ -5814,10 +5823,10 @@
     #hws-root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f5f1ee}
     #hws-toggle{width:48px;height:48px;border:0;background:#151515;border-radius:15px;display:grid;place-items:center;padding:0;box-shadow:0 9px 21px #000b,0 0 0 2px #151515;overflow:hidden}
     #hws-toggle img{width:38px;height:38px;display:block;object-fit:contain}.hws-title{font-size:18px;letter-spacing:-.035em;color:#f5e9e5}
-    #hws-panel{width:min(352px,calc(100vw - 32px));max-height:min(66dvh,calc(100dvh - 184px));background:#010102;border:0;border-radius:22px;box-shadow:0 20px 44px #000d,0 0 0 1px #000;backdrop-filter:blur(20px);padding:14px}
-    #hws-panel header{margin:0 0 10px}#hws-close{width:30px;height:30px;border:1px solid #2a2b2d!important;border-radius:50%;background:#161718!important;color:#f5e9e5!important;font-size:25px!important;display:grid;place-items:center}
+    #hws-panel{width:min(352px,calc(100vw - 32px));max-height:min(66dvh,calc(100dvh - 184px));background:#010102;border:0;border-radius:22px;box-shadow:0 20px 44px #000d,0 0 0 1px #000;backdrop-filter:blur(20px);padding:0 14px 14px}
+    #hws-panel header{position:sticky;top:0;z-index:5;height:40px;margin:0 0 8px;background:#010102;display:flex;align-items:center;border-radius:22px 22px 0 0}#hws-close{width:30px;height:30px;border:1px solid #2a2b2d!important;border-radius:50%;background:#161718!important;color:#f5e9e5!important;font-size:25px!important;display:grid;place-items:center}
     #hws-counter{padding:0 1px;color:#bea79f;font-size:10px}.hws-counts{background:#161718;border:1px solid #2a2b2d;border-radius:15px;padding:10px}.hws-count-number{background:#161718;border-width:1px;box-shadow:none;border-radius:12px}.hws-count-item small{color:#d9c7c1}#hws-count-context{color:#a99087}
-    #hws-result{background:#161718;border:1px solid #2a2b2d;border-radius:14px;padding:11px;color:#eadcd7}#hws-result strong{color:#fff7f4}#hws-result small,.hws-hint{color:#bea79f}.hws-switches{gap:7px}.hws-chip{background:#161718;border:1px solid #2a2b2d;color:#f4e7e2;padding:7px 10px}.hws-chip input{accent-color:#d65331}
+    #hws-result{background:#161718;border:1px solid #2a2b2d;border-radius:14px;padding:11px;color:#eadcd7}#hws-result strong{color:#fff7f4}#hws-result small,.hws-hint{color:#bea79f}.hws-deselect{width:100%;margin-top:8px;padding:8px 10px;border:1px solid #2a2b2d;border-radius:11px;background:#161718;color:#f4d8cd;font-size:11px;font-weight:750}.hws-switches{gap:7px}.hws-chip{background:#161718;border:1px solid #2a2b2d;color:#f4e7e2;padding:7px 10px}.hws-chip input{accent-color:#d65331}
     .hws-style,.hws-candidates{background:#161718;border:1px solid #2a2b2d;border-radius:13px;padding:0 10px}.hws-style summary,.hws-candidates summary{color:#f5e6df;font-size:12px;letter-spacing:.01em}.hws-color-row>span{color:#ceb7ae}.hws-color{border-color:#f8eee9;box-shadow:0 0 0 1px #563b32}.hws-width{color:#eadad3}.hws-width select,.hws-candidates input,.hws-candidates textarea{background:#010102;border:1px solid #2a2b2d;color:#f9efeb}.hws-candidate-save{background:linear-gradient(135deg,#dc6039,#b83d25);box-shadow:0 4px 12px #0006}.hws-candidate-clear{background:#161718;border:1px solid #2a2b2d;color:#ffdfd5}.hws-candidate-open{color:#f09a7c}.hws-candidate-row{border-color:#2a2b2d}.hws-candidate-empty,.hws-candidate-row small{color:#c5aaa0}.hws-secondary{border:1px solid #2a2b2d;background:#161718;color:#f4d8cd}.hws-hint{font-size:10px}#hws-panel footer{color:#a88f85;margin-top:11px}.hws-count-icon{width:22px;height:22px;object-fit:contain;filter:brightness(0) invert(1);opacity:.94}
   `;
     document.head.appendChild(style);
@@ -5827,8 +5836,10 @@
     state.result = root.querySelector("#hws-result");
     state.candidateList = root.querySelector("#hws-candidate-list");
     state.candidateCount = root.querySelector("#hws-candidate-count");
+    state.deselectButton = root.querySelector("#hws-deselect");
     root.querySelector("#hws-toggle")?.addEventListener("click", () => panel.hidden = !panel.hidden);
     root.querySelector("#hws-close")?.addEventListener("click", () => panel.hidden = true);
+    state.deselectButton?.addEventListener("click", clearEvaluation);
     root.querySelector("#hws-clear")?.addEventListener("click", clearLocalData);
     root.querySelector("#hws-save-candidate")?.addEventListener("click", addCandidate);
     root.querySelector("#hws-clear-candidates")?.addEventListener("click", clearCandidates);
