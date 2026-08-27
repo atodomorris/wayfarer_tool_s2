@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wayfinder — S2 Overlay
 // @namespace    https://hijuelas-wayspot-scout.local/
-// @version      0.8.0
+// @version      0.8.1
 // @description  Herramientas Wayfinder: lectura local S14/S17 y regla empírica de 22 m sobre Wayfarer.
 // @match        https://wayfarer.nianticlabs.com/new/mapview*
 // @match        https://wayfarer.scopely.com/new/mapview*
@@ -5445,7 +5445,7 @@
     candidateMarkers: [],
     evaluation: null,
     evaluationSource: null,
-    locationMessage: "Toca un punto del mapa para evaluar su S17, S14 y distancia de 22 m.",
+    locationMessage: "Toca un punto del mapa para evaluar su L17, L14 y distancia de 22 m.",
     showS17: true,
     showS14: true,
     showCircles: true,
@@ -5499,7 +5499,7 @@
     }
     const assessment = assessPoint(state.evaluation, [...state.pois.values()]);
     state.result.classList.add("hws-result--selected");
-    renderCountCards(assessment.s14Counts, "Wayspots: Celda S14 seleccionada", true);
+    renderCountCards(assessment.s14Counts, "Wayspots: Celda L14 seleccionada", true);
     const nearest = assessment.nearestInGame;
     const conflicts = assessment.within22InGame;
     const coordinateText = `${state.evaluation.lat.toFixed(6)}, ${state.evaluation.lng.toFixed(6)}`;
@@ -5507,8 +5507,8 @@
     const distanceSummary = conflicts.length ? `Hay ${conflicts.length} ${conflicts.length === 1 ? "Wayspot" : "Wayspots"} a menos de 22m` : "No hay Wayspots a menos de 22m del punto seleccionado";
     const distanceDetails = conflicts.length ? conflicts.map((reference) => wayspotRowMarkup(reference.poi, reference.meters)).join("") : nearest ? wayspotRowMarkup(nearest.poi, nearest.meters, true) : `<span class="hws-card-empty">No hay Wayspots en el juego entre los datos cargados.</span>`;
     state.result.innerHTML = `
-    <section class="hws-detail-card" aria-label="Wayspots de la celda S17 seleccionada">
-      <strong class="hws-card-title">Wayspots: Celda S17 seleccionada</strong>
+    <section class="hws-detail-card" aria-label="Wayspots de la celda L17 seleccionada">
+      <strong class="hws-card-title">Wayspots: Celda L17 seleccionada</strong>
       <span class="hws-card-status">${s17Summary}</span>
       ${assessment.s17References.length ? `<div class="hws-poi-list">${assessment.s17References.map((poi) => wayspotRowMarkup(poi)).join("")}</div>` : ""}
     </section>
@@ -5655,8 +5655,8 @@
       if (state.showS17 && s17.complete) s17.cells.forEach((cell) => addCellGeometry(cell, state.s17Color, 0.012));
       if (state.showS14 && s14.complete) s14.cells.forEach((cell) => addCellGeometry(cell, state.s14Color, 8e-3));
       const details = [
-        s17.complete ? `${s17.requiredCells} S17` : `S17: acerca el mapa (${s17.requiredCells}+ celdas)`,
-        s14.complete ? `${s14.requiredCells} S14` : `S14: acerca el mapa (${s14.requiredCells}+ celdas)`
+        s17.complete ? `${s17.requiredCells} L17` : `L17: acerca el mapa (${s17.requiredCells}+ celdas)`,
+        s14.complete ? `${s14.requiredCells} L14` : `L14: acerca el mapa (${s14.requiredCells}+ celdas)`
       ];
       state.gridMessage = `Cuadr\xEDcula completa: ${details.join(" \xB7 ")}`;
     } else {
@@ -5837,8 +5837,8 @@
     <section id="hws-panel" aria-label="Wayfinder" hidden>
       <header><strong class="hws-title">Wayfinder</strong><button id="hws-close" aria-label="Cerrar Wayfinder">\xD7</button></header>
       <div class="hws-switches" aria-label="Capas visibles">
-        <label class="hws-chip"><input id="hws-s17" type="checkbox" checked> Celda S17</label>
-        <label class="hws-chip"><input id="hws-s14" type="checkbox" checked> Celda S14</label>
+        <label class="hws-chip"><input id="hws-s17" type="checkbox" checked> Celda L17</label>
+        <label class="hws-chip"><input id="hws-s14" type="checkbox" checked> Celda L14</label>
         <label class="hws-chip"><input id="hws-22m" type="checkbox" checked> Distancia 22m</label>
       </div>
       <section class="hws-counts" aria-label="Conteo de referencias en la celda seleccionada">
@@ -5851,11 +5851,11 @@
       </section>
       <div id="hws-result" class="hws-result"></div>
       <button id="hws-deselect" class="hws-deselect" hidden>Volver a la vista actual</button>
-      <p class="hws-hint">Toca un punto del mapa para revisar S17, S14 y la distancia emp\xEDrica de 22 m.</p>
+      <p class="hws-hint">Toca un punto del mapa para revisar L17, L14 y la distancia emp\xEDrica de 22 m.</p>
       <details class="hws-style">
         <summary>Capas del mapa</summary>
-        <div class="hws-color-row"><span>S17</span><div class="hws-palette">${paletteMarkup("s17")}</div></div>
-        <div class="hws-color-row"><span>S14</span><div class="hws-palette">${paletteMarkup("s14")}</div></div>
+        <div class="hws-color-row"><span>L17</span><div class="hws-palette">${paletteMarkup("s17")}</div></div>
+        <div class="hws-color-row"><span>L14</span><div class="hws-palette">${paletteMarkup("s14")}</div></div>
         <label class="hws-width">Grosor <select id="hws-width"><option value="1">Est\xE1ndar</option><option value="2">Gruesa (2\xD7)</option><option value="3">Muy gruesa (3\xD7)</option></select></label>
       </details>
       <details class="hws-style">
@@ -5893,7 +5893,7 @@
     #hws-toggle img{width:38px;height:38px;display:block;object-fit:contain}.hws-title{font-size:18px;letter-spacing:-.035em;color:#f5e9e5}
     #hws-panel{width:min(352px,calc(100vw - 32px));max-height:min(66dvh,calc(100dvh - 184px));background:#010102;border:0;border-radius:22px;box-shadow:0 20px 44px #000d,0 0 0 1px #000;backdrop-filter:blur(20px);padding:0 14px 14px}
     #hws-panel header{position:sticky;top:0;z-index:5;height:40px;margin:0 -14px 8px;padding:0 14px;background:#010102;display:flex;align-items:center;border-radius:22px 22px 0 0;box-shadow:0 7px 14px #010102}#hws-close{width:30px;height:30px;border:1px solid #2a2b2d!important;border-radius:50%;background:#161718!important;color:#f5e9e5!important;font-size:25px!important;display:grid;place-items:center}
-    #hws-counter{padding:0 1px;color:#bea79f;font-size:10px}.hws-counts{background:#161718;border:1px solid #2a2b2d;border-radius:15px;padding:10px}.hws-count-number{background:#161718;border-width:1px;box-shadow:none;border-radius:12px}.hws-count-item small{color:#d9c7c1}#hws-count-context{display:block;margin:0 0 8px;color:#a99087;font-size:10px;font-weight:800;line-height:1.25}.hws-count-context--selected{font-size:11px!important;font-weight:800}
+    #hws-counter{padding:0 1px;color:#bea79f;font-size:10px}.hws-counts{background:#161718;border:1px solid #2a2b2d;border-radius:15px;padding:10px}.hws-count-number{background:#161718;border-width:1px;box-shadow:none;border-radius:12px}.hws-count-item small{color:#d9c7c1}#hws-count-context{display:block;margin:0 0 8px;color:#a99087;font-size:10px;font-weight:800;line-height:1.25}.hws-count-context--selected{font-size:11px!important;font-weight:800;color:#fff7f4;line-height:1.25}
     #hws-result{background:#161718;border:1px solid #2a2b2d;border-radius:14px;padding:11px;color:#eadcd7}#hws-result strong{color:#fff7f4}#hws-result small,.hws-hint{color:#bea79f}#hws-result.hws-result--selected{gap:8px;background:transparent;border:0;padding:0}.hws-detail-card{display:flex;flex-direction:column;gap:6px;background:#161718;border:1px solid #2a2b2d;border-radius:14px;padding:11px;color:#eadcd7}.hws-card-title{font-size:11px;font-weight:800;line-height:1.25;color:#fff7f4}.hws-card-status{font-size:11px;font-weight:700;line-height:1.35;color:#eadcd7}.hws-card-empty{font-size:10px;color:#bea79f}.hws-poi-list{display:flex;flex-direction:column}.hws-poi-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid #2a2b2d}.hws-poi-icon{width:20px;height:20px;flex:0 0 20px;object-fit:contain;filter:brightness(0) invert(1);opacity:.94}.hws-poi-icon--other{display:grid;place-items:center;border:1px solid #8f7970;border-radius:50%;color:#d9c7c1;font-size:18px;line-height:1}.hws-poi-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}.hws-poi-name{font-size:11px;font-weight:700;line-height:1.3;color:#f5e6df;overflow-wrap:anywhere}.hws-poi-meta{font-size:10px!important;color:#bea79f}.hws-coordinate{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:6px;margin-top:2px;padding-top:8px;border-top:1px solid #2a2b2d;color:#bea79f;font-size:10px}.hws-coordinate code{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#f5e6df;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px}.hws-copy-coordinate{border:1px solid #2a2b2d;border-radius:8px;background:#010102;color:#f4d8cd;padding:5px 7px;font-size:10px;font-weight:750}.hws-deselect{width:100%;margin-top:8px;padding:8px 10px;border:1px solid #2a2b2d;border-radius:11px;background:#161718;color:#f4d8cd;font-size:11px;font-weight:750}.hws-switches{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0 0 9px}.hws-chip{box-sizing:border-box;width:auto;min-width:0;min-height:36px;background:#161718;border:1px solid #2a2b2d;color:#f4e7e2;padding:7px 6px;justify-content:center;white-space:nowrap;font-size:10px}.hws-chip input{accent-color:#d65331;flex:0 0 auto}
     .hws-style,.hws-candidates{background:#161718;border:1px solid #2a2b2d;border-radius:13px;padding:0 10px}.hws-style summary,.hws-candidates summary{color:#f5e6df;font-size:12px;letter-spacing:.01em}.hws-color-row>span{color:#ceb7ae}.hws-color{border-color:#f8eee9;box-shadow:0 0 0 1px #563b32}.hws-width{color:#eadad3}.hws-width select,.hws-candidates input,.hws-candidates textarea{background:#010102;border:1px solid #2a2b2d;color:#f9efeb}.hws-candidate-save{background:linear-gradient(135deg,#dc6039,#b83d25);box-shadow:0 4px 12px #0006}.hws-candidate-clear{background:#161718;border:1px solid #2a2b2d;color:#ffdfd5}.hws-candidate-open{color:#f09a7c}.hws-candidate-row{border-color:#2a2b2d}.hws-candidate-empty,.hws-candidate-row small{color:#c5aaa0}.hws-secondary{border:1px solid #2a2b2d;background:#161718;color:#f4d8cd}.hws-hint{font-size:10px}#hws-panel footer{color:#a88f85;margin-top:11px}.hws-count-icon{width:22px;height:22px;object-fit:contain;filter:brightness(0) invert(1);opacity:.94}
   `;
