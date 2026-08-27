@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wayfinder — S2 Overlay
 // @namespace    https://hijuelas-wayspot-scout.local/
-// @version      0.7.6
+// @version      0.7.7
 // @description  Herramientas Wayfinder: lectura local S14/S17 y regla empírica de 22 m sobre Wayfarer.
 // @match        https://wayfarer.nianticlabs.com/new/mapview*
 // @match        https://wayfarer.scopely.com/new/mapview*
@@ -5767,6 +5767,11 @@
     <button id="hws-toggle" aria-label="Abrir Wayfinder"><img src="${"data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyBpZD0iQ2FwYV8yIiBkYXRhLW5hbWU9IkNhcGEgMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTQyLjU2IDE1Mi40NCI+CiAgPGRlZnM+CiAgICA8c3R5bGU+CiAgICAgIC5jbHMtMSB7CiAgICAgICAgZmlsbDogI2NhNGMyYzsKICAgICAgICBzdHJva2Utd2lkdGg6IDBweDsKICAgICAgfQogICAgPC9zdHlsZT4KICA8L2RlZnM+CiAgPGcgaWQ9IkNhcGFfMS0yIiBkYXRhLW5hbWU9IkNhcGEgMSI+CiAgICA8Zz4KICAgICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNMTA2Ljg5LDkyLjkxYzEuNTUtMTAuMzYsMy4xNy0yMC40MS0xLjU0LTMwLjQyLTQuNTItOS42LTguMTMtMTkuNjgtMTEuNDgtMjkuNzctNC40Ni0xMy40NSwzLjQtMjcuOCwxNi43NS0zMS42NywxMy42OC0zLjk2LDI4LjAxLDMuNDksMzEuMjQsMTcuMjUsMS4yMyw1LjIxLjc1LDExLjM5LS44MiwxNi41Ni0zLjA0LDkuOTktNy42NSwxOS40OS0xMS4xMSwyOS4zNy0xLjYyLDQuNjMtMi42Myw5LjYzLTIuOTcsMTQuNTItLjc2LDExLjEzLS44NywyMi4zLTEuMzYsMzMuNDUtLjQxLDkuMzMtNS4wOSwxMy45My0xMy41NCwxMy43Mi01LjM4LS4xMy04LjUxLTMuMzYtMTAuNzQtNy43Mi05LjQ3LTE4LjUyLTE4Ljg4LTM3LjA3LTI4LjMyLTU1LjYtMS40LTIuNzUtMi44OC01LjQ2LTUuNDEtNy45Ni0uNjIsOC43NC0xLjI1LDE3LjQ4LTEuODQsMjYuMjMtMS4wMSwxNC45NS0xLjkyLDI5LjktMyw0NC44NS0uNTUsNy42Ni0zLjY5LDExLjcxLTkuNSwxMi44Ny02Ljk0LDEuMzgtMTEuMjgtLjYyLTE0Ljg2LTcuOTEtMTAuMjUtMjAuOTEtMjAuMjctNDEuOTQtMzAuMzItNjIuOTUtMi41OC01LjQtNS4yOC0xMC43OC03LjMxLTE2LjM5LTIuMzUtNi41MS45NS0xMi4wNCw3Ljc3LTEyLjYsMi42LS4yMiw2LjI2LDEuMzcsNy45NCwzLjM4LDIuNzEsMy4yMyw0LjM1LDcuNDMsNi4xNSwxMS4zNSw3LjM1LDE2LjAzLDE0LjU5LDMyLjExLDIxLjg3LDQ4LjE2LjYzLDEuMzksMS4zMSwyLjc2LDMuMTMsMy44My40LTUuNzIuODctMTEuNDQsMS4yLTE3LjE2Ljc5LTEzLjQ3LDEuNS0yNi45NCwyLjMtNDAuNC4yLTMuMzIuNS02LjY0Ljk5LTkuOTIuODctNS44MSw0LjU1LTkuNTQsMTAuMy0xMC43Niw1LjU2LTEuMTcsMTAuMzkuNTQsMTMuNCw1LjQzLDIuODgsNC42Niw1LjMzLDkuNiw3LjgzLDE0LjQ4LDcuNzksMTUuMjMsMTUuNSwzMC41LDIzLjI1LDQ1Ljc2Wk0xMjguMTQsMjUuNzhjMC01Ljg3LTQuNjEtMTAuMzQtMTAuNTMtMTAuMjMtNS42My4xMS05Ljk5LDQuNTktOS45OCwxMC4yNy4wMiw1LjY5LDQuMzcsMTAuMTQsMTAuMDIsMTAuMjMsNS45Mi4wOSwxMC40OS00LjM4LDEwLjQ4LTEwLjI3WiIvPgogICAgICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik0xMjUuNTMsMTQyLjY3Yy4wOCw0Ljk5LTQuNDUsOS42NS05LjUsOS43Ny00Ljk1LjEyLTkuNjUtNC40Ni05Ljc2LTkuNS0uMTEtNC45Niw0LjUtOS43MSw5LjQ5LTkuNzcsNS4wMS0uMDYsOS43LDQuNDksOS43Nyw5LjQ5WiIvPgogICAgPC9nPgogIDwvZz4KPC9zdmc+"}" alt=""></button>
     <section id="hws-panel" aria-label="Wayfinder" hidden>
       <header><strong class="hws-title">Wayfinder</strong><button id="hws-close" aria-label="Cerrar Wayfinder">\xD7</button></header>
+      <div class="hws-switches" aria-label="Capas visibles">
+        <label class="hws-chip"><input id="hws-s17" type="checkbox" checked> Celda S17</label>
+        <label class="hws-chip"><input id="hws-s14" type="checkbox" checked> Celda S14</label>
+        <label class="hws-chip"><input id="hws-22m" type="checkbox" checked> Distancia 22m</label>
+      </div>
       <p id="hws-counter">Esperando referencias del mapa</p>
       <section class="hws-counts" aria-label="Conteo de referencias en la celda seleccionada">
         <div class="hws-count-grid">
@@ -5779,11 +5784,6 @@
       <div id="hws-result" class="hws-result"></div>
       <button id="hws-deselect" class="hws-deselect" hidden>Volver a la vista actual</button>
       <p class="hws-hint">Toca un punto del mapa para revisar S17, S14 y la distancia emp\xEDrica de 22 m.</p>
-      <div class="hws-switches">
-        <label class="hws-chip"><input id="hws-s17" type="checkbox" checked> S17</label>
-        <label class="hws-chip"><input id="hws-s14" type="checkbox" checked> S14</label>
-        <label class="hws-chip"><input id="hws-22m" type="checkbox" checked> 22 m</label>
-      </div>
       <details class="hws-style">
         <summary>Capas del mapa</summary>
         <div class="hws-color-row"><span>S17</span><div class="hws-palette">${paletteMarkup("s17")}</div></div>
@@ -5824,9 +5824,9 @@
     #hws-toggle{width:48px;height:48px;border:0;background:#151515;border-radius:15px;display:grid;place-items:center;padding:0;box-shadow:0 9px 21px #000b,0 0 0 2px #151515;overflow:hidden}
     #hws-toggle img{width:38px;height:38px;display:block;object-fit:contain}.hws-title{font-size:18px;letter-spacing:-.035em;color:#f5e9e5}
     #hws-panel{width:min(352px,calc(100vw - 32px));max-height:min(66dvh,calc(100dvh - 184px));background:#010102;border:0;border-radius:22px;box-shadow:0 20px 44px #000d,0 0 0 1px #000;backdrop-filter:blur(20px);padding:0 14px 14px}
-    #hws-panel header{position:sticky;top:0;z-index:5;height:40px;margin:0 0 8px;background:#010102;display:flex;align-items:center;border-radius:22px 22px 0 0}#hws-close{width:30px;height:30px;border:1px solid #2a2b2d!important;border-radius:50%;background:#161718!important;color:#f5e9e5!important;font-size:25px!important;display:grid;place-items:center}
+    #hws-panel header{position:sticky;top:0;z-index:5;height:40px;margin:0 -14px 8px;padding:0 14px;background:#010102;display:flex;align-items:center;border-radius:22px 22px 0 0;box-shadow:0 7px 14px #010102}#hws-close{width:30px;height:30px;border:1px solid #2a2b2d!important;border-radius:50%;background:#161718!important;color:#f5e9e5!important;font-size:25px!important;display:grid;place-items:center}
     #hws-counter{padding:0 1px;color:#bea79f;font-size:10px}.hws-counts{background:#161718;border:1px solid #2a2b2d;border-radius:15px;padding:10px}.hws-count-number{background:#161718;border-width:1px;box-shadow:none;border-radius:12px}.hws-count-item small{color:#d9c7c1}#hws-count-context{color:#a99087}
-    #hws-result{background:#161718;border:1px solid #2a2b2d;border-radius:14px;padding:11px;color:#eadcd7}#hws-result strong{color:#fff7f4}#hws-result small,.hws-hint{color:#bea79f}.hws-deselect{width:100%;margin-top:8px;padding:8px 10px;border:1px solid #2a2b2d;border-radius:11px;background:#161718;color:#f4d8cd;font-size:11px;font-weight:750}.hws-switches{gap:7px}.hws-chip{background:#161718;border:1px solid #2a2b2d;color:#f4e7e2;padding:7px 10px}.hws-chip input{accent-color:#d65331}
+    #hws-result{background:#161718;border:1px solid #2a2b2d;border-radius:14px;padding:11px;color:#eadcd7}#hws-result strong{color:#fff7f4}#hws-result small,.hws-hint{color:#bea79f}.hws-deselect{width:100%;margin-top:8px;padding:8px 10px;border:1px solid #2a2b2d;border-radius:11px;background:#161718;color:#f4d8cd;font-size:11px;font-weight:750}.hws-switches{display:flex;flex-direction:column;gap:6px;margin:0 0 9px}.hws-chip{box-sizing:border-box;width:100%;min-height:36px;background:#161718;border:1px solid #2a2b2d;color:#f4e7e2;padding:8px 11px;justify-content:flex-start}.hws-chip input{accent-color:#d65331}
     .hws-style,.hws-candidates{background:#161718;border:1px solid #2a2b2d;border-radius:13px;padding:0 10px}.hws-style summary,.hws-candidates summary{color:#f5e6df;font-size:12px;letter-spacing:.01em}.hws-color-row>span{color:#ceb7ae}.hws-color{border-color:#f8eee9;box-shadow:0 0 0 1px #563b32}.hws-width{color:#eadad3}.hws-width select,.hws-candidates input,.hws-candidates textarea{background:#010102;border:1px solid #2a2b2d;color:#f9efeb}.hws-candidate-save{background:linear-gradient(135deg,#dc6039,#b83d25);box-shadow:0 4px 12px #0006}.hws-candidate-clear{background:#161718;border:1px solid #2a2b2d;color:#ffdfd5}.hws-candidate-open{color:#f09a7c}.hws-candidate-row{border-color:#2a2b2d}.hws-candidate-empty,.hws-candidate-row small{color:#c5aaa0}.hws-secondary{border:1px solid #2a2b2d;background:#161718;color:#f4d8cd}.hws-hint{font-size:10px}#hws-panel footer{color:#a88f85;margin-top:11px}.hws-count-icon{width:22px;height:22px;object-fit:contain;filter:brightness(0) invert(1);opacity:.94}
   `;
     document.head.appendChild(style);
