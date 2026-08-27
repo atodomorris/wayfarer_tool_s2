@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wayfinder — S2 Overlay
 // @namespace    https://hijuelas-wayspot-scout.local/
-// @version      0.7.9
+// @version      0.8.0
 // @description  Herramientas Wayfinder: lectura local S14/S17 y regla empírica de 22 m sobre Wayfarer.
 // @match        https://wayfarer.nianticlabs.com/new/mapview*
 // @match        https://wayfarer.scopely.com/new/mapview*
@@ -5300,8 +5300,9 @@
       s17: s2Geometry(poi, 17).id,
       s14: s2Geometry(poi, 14).id
     }));
-    const inGame = pois.filter((poi) => poi.gameState === "in-game" && poi.is22mReference);
-    const nearestInGame = inGame.map((poi) => ({ poi, meters: haversineMeters(point, poi) })).sort((a, b) => a.meters - b.meters)[0] ?? null;
+    const inGameByDistance = pois.filter((poi) => poi.gameState === "in-game" && poi.is22mReference).map((poi) => ({ poi, meters: haversineMeters(point, poi) })).sort((a, b) => a.meters - b.meters);
+    const nearestInGame = inGameByDistance[0] ?? null;
+    const within22InGame = inGameByDistance.filter((reference) => reference.meters < 22);
     const s17References = withCells.filter((item) => item.s17 === s17.id).map((item) => item.poi);
     const s14References = withCells.filter((item) => item.s14 === s14.id).map((item) => item.poi);
     return {
@@ -5312,6 +5313,7 @@
       s14References,
       s17Counts: countPoiKinds(s17References),
       s14Counts: countPoiKinds(s14References),
+      within22InGame,
       nearestInGame
     };
   }
@@ -5490,30 +5492,40 @@
     if (state.deselectButton) state.deselectButton.hidden = !state.evaluation;
     if (!state.result) return;
     if (!state.evaluation) {
-      renderCountCards(loaded, "Conteo de Wayspots cargados en la vista actual del mapa");
+      state.result.classList.remove("hws-result--selected");
+      renderCountCards(loaded, "Wayspots en la vista actual del mapa");
       state.result.innerHTML = `<strong>Toca un punto del mapa</strong><span>${state.locationMessage}</span><small>Los contadores superiores muestran los datos que Wayfarer ya carg\xF3 en esta vista.</small>`;
       return;
     }
     const assessment = assessPoint(state.evaluation, [...state.pois.values()]);
-    renderCountCards(assessment.s14Counts, "Conteo de Wayspots de la celda S14 seleccionada.");
+    state.result.classList.add("hws-result--selected");
+    renderCountCards(assessment.s14Counts, "Wayspots: Celda S14 seleccionada", true);
     const nearest = assessment.nearestInGame;
-    const within22 = nearest && nearest.meters < 22;
-    const s17Text = assessment.s17References.length ? `S17: ${assessment.s17References.length} referencia(s) observada(s)` : "S17: sin referencias observadas";
-    const otherText = assessment.s14Counts.other ? ` \xB7 ${assessment.s14Counts.other} otra(s) referencia(s)` : "";
-    const distanceText = nearest ? `${nearest.meters.toFixed(1)} m a \xAB${nearest.poi.title}\xBB (${nearest.poi.gameState})` : "sin referencias clasificadas en el juego";
-    const sourceText = state.evaluationSource === "candidato" ? "Candidato local" : "Punto tocado en el mapa";
+    const conflicts = assessment.within22InGame;
+    const coordinateText = `${state.evaluation.lat.toFixed(6)}, ${state.evaluation.lng.toFixed(6)}`;
+    const s17Summary = assessment.s17References.length ? wayspotCountText(assessment.s17References.length) : "Celda vac\xEDa";
+    const distanceSummary = conflicts.length ? `Hay ${conflicts.length} ${conflicts.length === 1 ? "Wayspot" : "Wayspots"} a menos de 22m` : "No hay Wayspots a menos de 22m del punto seleccionado";
+    const distanceDetails = conflicts.length ? conflicts.map((reference) => wayspotRowMarkup(reference.poi, reference.meters)).join("") : nearest ? wayspotRowMarkup(nearest.poi, nearest.meters, true) : `<span class="hws-card-empty">No hay Wayspots en el juego entre los datos cargados.</span>`;
     state.result.innerHTML = `
-    <strong>${within22 ? "Conflicto de 22 m" : "Revisi\xF3n de 22 m"}</strong>
-    <span>${within22 ? "Hay una referencia en juego a menos de 22 m." : "No se detect\xF3 una referencia en juego a menos de 22 m en los datos cargados."}</span>
-    <span>${s17Text}</span>
-    <span>Celda S14: ${assessment.s14References.length} referencia(s)${otherText}</span>
-    <span>M\xE1s cercana: ${distanceText}</span>
-    <span>${sourceText}: ${state.evaluation.lat.toFixed(6)}, ${state.evaluation.lng.toFixed(6)}</span>
-    <small>Resultado local y orientativo: no garantiza inclusi\xF3n en Pok\xE9mon GO ni activaci\xF3n de un nodo.</small>`;
+    <section class="hws-detail-card" aria-label="Wayspots de la celda S17 seleccionada">
+      <strong class="hws-card-title">Wayspots: Celda S17 seleccionada</strong>
+      <span class="hws-card-status">${s17Summary}</span>
+      ${assessment.s17References.length ? `<div class="hws-poi-list">${assessment.s17References.map((poi) => wayspotRowMarkup(poi)).join("")}</div>` : ""}
+    </section>
+    <section class="hws-detail-card" aria-label="Distancia de 22 metros para Nodos Energ\xE9ticos">
+      <strong class="hws-card-title">Distancia 22m para Nodos Energ\xE9ticos</strong>
+      <span class="hws-card-status">${distanceSummary}</span>
+      <div class="hws-poi-list">${distanceDetails}</div>
+      ${coordinateMarkup(coordinateText)}
+    </section>`;
+    wireCoordinateCopyButton();
   }
-  function renderCountCards(counts, context) {
+  function renderCountCards(counts, context, selected = false) {
     const contextElement = document.getElementById("hws-count-context");
-    if (contextElement) contextElement.textContent = context;
+    if (contextElement) {
+      contextElement.textContent = context;
+      contextElement.classList.toggle("hws-count-context--selected", selected);
+    }
     const cards = [
       ["pokestop", "Pok\xE9paradas", state.pokestopColor],
       ["gym", "Gimnasios", state.gymColor],
@@ -5534,6 +5546,65 @@
   function countIconMarkup(kind) {
     const source = define_WAYFINDER_COUNT_ICONS_default[kind];
     return `<img class="hws-count-icon" src="${source}" alt="" aria-hidden="true">`;
+  }
+  function escapeHtml(value) {
+    return value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character] ?? character);
+  }
+  function wayspotCountText(count) {
+    return `${count} ${count === 1 ? "Wayspot encontrado" : "Wayspots encontrados"}`;
+  }
+  function poiIconMarkup(kind) {
+    if (kind === "other") return `<span class="hws-poi-icon hws-poi-icon--other" aria-hidden="true">\u2022</span>`;
+    return `<img class="hws-poi-icon" src="${define_WAYFINDER_COUNT_ICONS_default[kind]}" alt="" aria-hidden="true">`;
+  }
+  function wayspotRowMarkup(poi, meters, isNearest = false) {
+    const metadata = [
+      isNearest ? "M\xE1s cercana" : "",
+      isNearest ? "Est\xE1 en el juego" : "",
+      typeof meters === "number" ? `${meters.toFixed(1)} m` : ""
+    ].filter(Boolean).join(" \xB7 ");
+    return `<div class="hws-poi-row">${poiIconMarkup(poi.kind)}<div class="hws-poi-copy"><span class="hws-poi-name">${escapeHtml(poi.title)}</span>${metadata ? `<small class="hws-poi-meta">${metadata}</small>` : ""}</div></div>`;
+  }
+  function coordinateMarkup(coordinates) {
+    return `<div class="hws-coordinate"><span>Punto tocado</span><code>${coordinates}</code><button type="button" class="hws-copy-coordinate" data-hws-coordinates="${coordinates}" aria-label="Copiar coordenadas del punto tocado">Copiar</button></div>`;
+  }
+  async function copyText(text2) {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text2);
+        return true;
+      }
+    } catch {
+    }
+    const textarea = document.createElement("textarea");
+    textarea.value = text2;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      return document.execCommand("copy");
+    } catch {
+      return false;
+    } finally {
+      textarea.remove();
+    }
+  }
+  function wireCoordinateCopyButton() {
+    const button = state.result?.querySelector("[data-hws-coordinates]");
+    if (!button) return;
+    button.addEventListener("click", () => {
+      const coordinates = button.dataset.hwsCoordinates;
+      if (!coordinates) return;
+      void copyText(coordinates).then((copied) => {
+        if (!copied) return;
+        button.textContent = "Copiado";
+        window.setTimeout(() => {
+          button.textContent = "Copiar";
+        }, 1400);
+      });
+    });
   }
   function clearVisuals() {
     state.polygons.forEach((polygon) => polygon.setMap?.(null));
@@ -5771,12 +5842,12 @@
         <label class="hws-chip"><input id="hws-22m" type="checkbox" checked> Distancia 22m</label>
       </div>
       <section class="hws-counts" aria-label="Conteo de referencias en la celda seleccionada">
+        <small id="hws-count-context">Wayspots en la vista actual del mapa</small>
         <div class="hws-count-grid">
           <div class="hws-count-item"><div class="hws-count-number">${countIconMarkup("pokestop")}<span id="hws-count-pokestop">0</span></div><small>Pok\xE9paradas</small></div>
           <div class="hws-count-item"><div class="hws-count-number">${countIconMarkup("gym")}<span id="hws-count-gym">0</span></div><small>Gimnasios</small></div>
           <div class="hws-count-item"><div class="hws-count-number">${countIconMarkup("powerspot")}<span id="hws-count-powerspot">0</span></div><small>Nodos</small></div>
         </div>
-        <small id="hws-count-context">Conteo de referencias cargadas en la vista actual</small>
       </section>
       <div id="hws-result" class="hws-result"></div>
       <button id="hws-deselect" class="hws-deselect" hidden>Volver a la vista actual</button>
@@ -5822,8 +5893,8 @@
     #hws-toggle img{width:38px;height:38px;display:block;object-fit:contain}.hws-title{font-size:18px;letter-spacing:-.035em;color:#f5e9e5}
     #hws-panel{width:min(352px,calc(100vw - 32px));max-height:min(66dvh,calc(100dvh - 184px));background:#010102;border:0;border-radius:22px;box-shadow:0 20px 44px #000d,0 0 0 1px #000;backdrop-filter:blur(20px);padding:0 14px 14px}
     #hws-panel header{position:sticky;top:0;z-index:5;height:40px;margin:0 -14px 8px;padding:0 14px;background:#010102;display:flex;align-items:center;border-radius:22px 22px 0 0;box-shadow:0 7px 14px #010102}#hws-close{width:30px;height:30px;border:1px solid #2a2b2d!important;border-radius:50%;background:#161718!important;color:#f5e9e5!important;font-size:25px!important;display:grid;place-items:center}
-    #hws-counter{padding:0 1px;color:#bea79f;font-size:10px}.hws-counts{background:#161718;border:1px solid #2a2b2d;border-radius:15px;padding:10px}.hws-count-number{background:#161718;border-width:1px;box-shadow:none;border-radius:12px}.hws-count-item small{color:#d9c7c1}#hws-count-context{color:#a99087}
-    #hws-result{background:#161718;border:1px solid #2a2b2d;border-radius:14px;padding:11px;color:#eadcd7}#hws-result strong{color:#fff7f4}#hws-result small,.hws-hint{color:#bea79f}.hws-deselect{width:100%;margin-top:8px;padding:8px 10px;border:1px solid #2a2b2d;border-radius:11px;background:#161718;color:#f4d8cd;font-size:11px;font-weight:750}.hws-switches{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0 0 9px}.hws-chip{box-sizing:border-box;width:auto;min-width:0;min-height:36px;background:#161718;border:1px solid #2a2b2d;color:#f4e7e2;padding:7px 6px;justify-content:center;white-space:nowrap;font-size:10px}.hws-chip input{accent-color:#d65331;flex:0 0 auto}
+    #hws-counter{padding:0 1px;color:#bea79f;font-size:10px}.hws-counts{background:#161718;border:1px solid #2a2b2d;border-radius:15px;padding:10px}.hws-count-number{background:#161718;border-width:1px;box-shadow:none;border-radius:12px}.hws-count-item small{color:#d9c7c1}#hws-count-context{display:block;margin:0 0 8px;color:#a99087;font-size:10px;font-weight:800;line-height:1.25}.hws-count-context--selected{font-size:11px!important;font-weight:800}
+    #hws-result{background:#161718;border:1px solid #2a2b2d;border-radius:14px;padding:11px;color:#eadcd7}#hws-result strong{color:#fff7f4}#hws-result small,.hws-hint{color:#bea79f}#hws-result.hws-result--selected{gap:8px;background:transparent;border:0;padding:0}.hws-detail-card{display:flex;flex-direction:column;gap:6px;background:#161718;border:1px solid #2a2b2d;border-radius:14px;padding:11px;color:#eadcd7}.hws-card-title{font-size:11px;font-weight:800;line-height:1.25;color:#fff7f4}.hws-card-status{font-size:11px;font-weight:700;line-height:1.35;color:#eadcd7}.hws-card-empty{font-size:10px;color:#bea79f}.hws-poi-list{display:flex;flex-direction:column}.hws-poi-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid #2a2b2d}.hws-poi-icon{width:20px;height:20px;flex:0 0 20px;object-fit:contain;filter:brightness(0) invert(1);opacity:.94}.hws-poi-icon--other{display:grid;place-items:center;border:1px solid #8f7970;border-radius:50%;color:#d9c7c1;font-size:18px;line-height:1}.hws-poi-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}.hws-poi-name{font-size:11px;font-weight:700;line-height:1.3;color:#f5e6df;overflow-wrap:anywhere}.hws-poi-meta{font-size:10px!important;color:#bea79f}.hws-coordinate{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:6px;margin-top:2px;padding-top:8px;border-top:1px solid #2a2b2d;color:#bea79f;font-size:10px}.hws-coordinate code{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#f5e6df;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px}.hws-copy-coordinate{border:1px solid #2a2b2d;border-radius:8px;background:#010102;color:#f4d8cd;padding:5px 7px;font-size:10px;font-weight:750}.hws-deselect{width:100%;margin-top:8px;padding:8px 10px;border:1px solid #2a2b2d;border-radius:11px;background:#161718;color:#f4d8cd;font-size:11px;font-weight:750}.hws-switches{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0 0 9px}.hws-chip{box-sizing:border-box;width:auto;min-width:0;min-height:36px;background:#161718;border:1px solid #2a2b2d;color:#f4e7e2;padding:7px 6px;justify-content:center;white-space:nowrap;font-size:10px}.hws-chip input{accent-color:#d65331;flex:0 0 auto}
     .hws-style,.hws-candidates{background:#161718;border:1px solid #2a2b2d;border-radius:13px;padding:0 10px}.hws-style summary,.hws-candidates summary{color:#f5e6df;font-size:12px;letter-spacing:.01em}.hws-color-row>span{color:#ceb7ae}.hws-color{border-color:#f8eee9;box-shadow:0 0 0 1px #563b32}.hws-width{color:#eadad3}.hws-width select,.hws-candidates input,.hws-candidates textarea{background:#010102;border:1px solid #2a2b2d;color:#f9efeb}.hws-candidate-save{background:linear-gradient(135deg,#dc6039,#b83d25);box-shadow:0 4px 12px #0006}.hws-candidate-clear{background:#161718;border:1px solid #2a2b2d;color:#ffdfd5}.hws-candidate-open{color:#f09a7c}.hws-candidate-row{border-color:#2a2b2d}.hws-candidate-empty,.hws-candidate-row small{color:#c5aaa0}.hws-secondary{border:1px solid #2a2b2d;background:#161718;color:#f4d8cd}.hws-hint{font-size:10px}#hws-panel footer{color:#a88f85;margin-top:11px}.hws-count-icon{width:22px;height:22px;object-fit:contain;filter:brightness(0) invert(1);opacity:.94}
   `;
     document.head.appendChild(style);
